@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestion Cabinet Psychomotricité</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* Styles pour les boutons d'action et la fenêtre modale */
+        .btn-edit { background-color: #f39c12; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; margin-right: 5px; }
+        .btn-delete { background-color: #e74c3c; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; }
+        .btn-edit:hover { background-color: #d68910; }
+        .btn-delete:hover { background-color: #c0392b; }
+
+        /* Style de la modale */
+        .modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); }
+        .modal-content { background-color: #fff; margin: 10% auto; padding: 25px; border-radius: 8px; width: 90%; max-width: 500px; }
+        .modal-buttons { display: flex; gap: 10px; margin-top: 15px; }
+        .btn-cancel { background-color: #95a5a6; color: white; border: none; padding: 10px; border-radius: 4px; cursor: pointer; width: 100%; }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Cabinet de Psychomotricité</h1>
+        <p>Gestion des patients & synchronisation Cloud</p>
+    </header>
+
+    <main class="container">
+        <!-- Formulaire d'ajout -->
+        <section class="card">
+            <h2>Nouveau Patient</h2>
+            <form id="patient-form" action="javascript:void(0);">
+                <div class="form-group">
+                    <label for="nom">Nom :</label>
+                    <input type="text" id="nom" required placeholder="ex: DUPONT">
+                </div>
+                <div class="form-group">
+                    <label for="prenom">Prénom :</label>
+                    <input type="text" id="prenom" required placeholder="ex: Camille">
+                </div>
+                <div class="form-group">
+                    <label for="motif">Motif de consultation :</label>
+                    <input type="text" id="motif" placeholder="ex: Bilan, TDAH, Graphomotricité">
+                </div>
+                <div class="form-group">
+                    <label for="suivi">Rythme de suivi :</label>
+                    <select id="suivi">
+                        <option value="Hebdomadaire">Hebdomadaire</option>
+                        <option value="Tous les 15 jours">Tous les 15 jours</option>
+                        <option value="Mensuel">Mensuel</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn">Enregistrer le patient</button>
+            </form>
+        </section>
+
+        <!-- Liste des patients -->
+        <section class="card">
+            <h2>Liste des Patients</h2>
+            <div class="table-container">
+                <table id="patients-table">
+                    <thead>
+                        <tr>
+                            <th>Nom</th>
+                            <th>Prénom</th>
+                            <th>Motif</th>
+                            <th>Suivi</th>
+                            <th>Statut</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="patients-list">
+                        <!-- Les patients s'afficheront ici -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <!-- Fenêtre Modale de Modification -->
+    <div id="edit-modal" class="modal">
+        <div class="modal-content">
+            <h2>Modifier le Patient</h2>
+            <form id="edit-form" action="javascript:void(0);">
+                <input type="hidden" id="edit-id">
+                <div class="form-group">
+                    <label for="edit-nom">Nom :</label>
+                    <input type="text" id="edit-nom" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-prenom">Prénom :</label>
+                    <input type="text" id="edit-prenom" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-motif">Motif :</label>
+                    <input type="text" id="edit-motif">
+                </div>
+                <div class="form-group">
+                    <label for="edit-suivi">Rythme de suivi :</label>
+                    <select id="edit-suivi">
+                        <option value="Hebdomadaire">Hebdomadaire</option>
+                        <option value="Tous les 15 jours">Tous les 15 jours</option>
+                        <option value="Mensuel">Mensuel</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="edit-statut">Statut :</label>
+                    <select id="edit-statut">
+                        <option value="Actif">Actif</option>
+                        <option value="Inactif">Inactif</option>
+                        <option value="Archivé">Archivé</option>
+                    </select>
+                </div>
+                <div class="modal-buttons">
+                    <button type="submit" class="btn">Sauvegarder</button>
+                    <button type="button" class="btn-cancel" onclick="closeModal()">Annuler</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let allPatients = [];
+
+        // Charger la liste au démarrage
+        async function loadPatients() {
+            try {
+                const res = await fetch('/api/patients');
+                allPatients = await res.json();
+                
+                const tbody = document.getElementById('patients-list');
+                tbody.innerHTML = '';
+
+                if (allPatients.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#777;">Aucun patient enregistré.</td></tr>';
+                    return;
+                }
+
+                allPatients.forEach(patient => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td><strong>${patient.nom}</strong></td>
+                        <td>${patient.prenom}</td>
+                        <td>${patient.motif || '-'}</td>
+                        <td>${patient.suivi}</td>
+                        <td><span class="badge">${patient.statut || 'Actif'}</span></td>
+                        <td>
+                            <button class="btn-edit" onclick="openEditModal(${patient.id})">✏️ Modifier</button>
+                            <button class="btn-delete" onclick="deletePatient(${patient.id})">🗑️ Supprimer</button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (err) {
+                console.error("Erreur de chargement :", err);
+            }
+        }
+
+        // Ajouter un patient
+        document.getElementById('patient-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const nom = document.getElementById('nom').value;
+            const prenom = document.getElementById('prenom').value;
+            const motif = document.getElementById('motif').value;
+            const suivi = document.getElementById('suivi').value;
+
+            try {
+                const res = await fetch('/api/patients', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ nom, prenom, motif, suivi })
+                });
+
+                if (res.ok) {
+                    document.getElementById('patient-form').reset();
+                    loadPatients();
+                }
+            } catch (err) {
+                console.error("Erreur :", err);
+            }
+        });
+
+        // Ouvrir la modale d'édition
+        function openEditModal(id) {
+            const patient = allPatients.find(p => p.id === id);
+            if (!patient) return;
+
+            document.getElementById('edit-id').value = patient.id;
+            document.getElementById('edit-nom').value = patient.nom;
+            document.getElementById('edit-prenom').value = patient.prenom;
+            document.getElementById('edit-motif').value = patient.motif || '';
+            document.getElementById('edit-suivi').value = patient.suivi || 'Hebdomadaire';
+            document.getElementById('edit-statut').value = patient.statut || 'Actif';
+
+            document.getElementById('edit-modal').style.display = 'block';
+        }
+
+        function closeModal() {
+            document.getElementById('edit-modal').style.display = 'none';
+        }
+
+        // Sauvegarder la modification
+        document.getElementById('edit-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('edit-id').value;
+            const nom = document.getElementById('edit-nom').value;
+            const prenom = document.getElementById('edit-prenom').value;
+            const motif = document.getElementById('edit-motif').value;
+            const suivi = document.getElementById('edit-suivi').value;
+            const statut = document.getElementById('edit-statut').value;
+
+            try {
+                const res = await fetch(`/api/patients/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ nom, prenom, motif, suivi, statut })
+                });
+
+                if (res.ok) {
+                    closeModal();
+                    loadPatients();
+                }
+            } catch (err) {
+                console.error("Erreur de modification :", err);
+            }
+        });
+
+        // Supprimer un patient
+        async function deletePatient(id) {
+            if (!confirm("Voulez-vous vraiment supprimer ce patient ?")) return;
+
+            try {
+                const res = await fetch(`/api/patients/${id}`, { method: 'DELETE' });
+                if (res.ok) {
+                    loadPatients();
+                }
+            } catch (err) {
+                console.error("Erreur de suppression :", err);
+            }
+        }
+
+        loadPatients();
+    </script>
+</body>
+</html>
