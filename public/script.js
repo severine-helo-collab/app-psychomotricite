@@ -54,11 +54,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // 5. Gestion de la création de patient (sans rechargement de page)
+ // 5. Gestion de la création de patient
   const patientForm = document.getElementById('patient-form');
   if (patientForm) {
     patientForm.addEventListener('submit', async (e) => {
-      e.preventDefault(); // Empêche le rechargement de la page qui vous renvoyait sur l'écran de connexion
+      e.preventDefault();
 
       const nomInput = document.getElementById('patient-nom');
       const prenomInput = document.getElementById('patient-prenom');
@@ -66,22 +66,28 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       const nom = nomInput ? nomInput.value.trim() : '';
       const prenom = prenomInput ? prenomInput.value.trim() : '';
-      const dateNaissance = dobInput ? dobInput.value : '';
+      
+      // SI LA DATE EST VIDE, ON ENVOIE null ET NON PAS ""
+      const rawDate = dobInput ? dobInput.value : '';
+      const dateNaissance = rawDate !== '' ? rawDate : null;
 
       const { data, error } = await supabaseClient
         .from('patients')
-        .insert([{ nom, prenom, date_naissance: dateNaissance }]);
+        .insert([{ 
+          nom: nom, 
+          prenom: prenom, 
+          date_naissance: dateNaissance 
+        }]);
 
       if (error) {
         alert("Erreur lors de la création : " + error.message);
       } else {
         alert("Patient créé avec succès !");
         patientForm.reset();
-        await loadPatients(); // Rafraîchit la liste automatiquement
+        await loadPatients();
       }
     });
   }
-});
 
 // Fonctions d'affichage des écrans
 function showAppScreen() {
