@@ -1,164 +1,90 @@
-const SUPABASE_URL = "https://iyxurkbceiirjdigcyak.supabase.co";
-// N'oubliez pas de remettre votre vraie clé JWT anon (commençant par eyJ...)
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml5eHVya2JjZWlpcmpkaWdjeWFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkwNDYzODQsImV4cCI6MjEwNDYyMjM4NH0.MGBADlkxP307mbUvU_07OEhN5sfqv9_wSTqIP5AVK-s"; 
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cabinet de Psychomotricité - Gestion Patientèle</title>
+  <link rel="stylesheet" href="style.css">
+  <!-- CDN Supabase JS -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="script.js" defer></script>
+</head>
+<body style="font-family: Arial, sans-serif; background-color: #f4f6f9; margin: 0; padding: 20px;">
 
-let supabaseClient;
+  <div class="container" style="max-width: 1000px; margin: 0 auto;">
 
-document.addEventListener('DOMContentLoaded', async () => {
-  // 1. Initialisation du client Supabase
-  if (window.supabase) {
-    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  } else {
-    console.error("La bibliothèque Supabase n'est pas chargée.");
-    return;
-  }
+    <!-- SECTION CONNEXION -->
+    <section id="login-section" style="background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 400px; margin: 50px auto;">
+      <h2 style="margin-top: 0; text-align: center;">Connexion</h2>
+      <form id="login-form" style="display: flex; flex-direction: column; gap: 15px;">
+        <div>
+          <label for="login-email" style="display: block; margin-bottom: 5px; font-weight: bold;">Email :</label>
+          <input type="email" id="login-email" required style="width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px;">
+        </div>
+        <div>
+          <label for="login-password" style="display: block; margin-bottom: 5px; font-weight: bold;">Mot de passe :</label>
+          <input type="password" id="login-password" required style="width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px;">
+        </div>
+        <button type="submit" style="background: #3498db; color: white; border: none; padding: 10px; border-radius: 4px; font-weight: bold; cursor: pointer;">
+          Se connecter
+        </button>
+      </form>
+      <p id="auth-error" style="color: #e74c3c; margin-top: 15px; text-align: center; font-weight: bold;"></p>
+    </section>
 
-  // 2. Restauration de la session existante si l'utilisateur est déjà connecté
-  const { data: { session } } = await supabaseClient.auth.getSession();
-  if (session) {
-    showAppScreen();
-  }
+    <!-- SECTION APPLICATION (TABLEAU DE BORD) -->
+    <section id="app-section" class="hidden" style="display: none;">
+      <!-- En-tête du tableau de bord -->
+      <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; background: white; padding: 15px 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+        <h2 style="margin: 0; color: #2c3e50;">📊 Tableau de bord</h2>
+        <button onclick="logout()" style="background-color: #e74c3c; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; font-weight: bold;">
+          Se déconnecter
+        </button>
+      </header>
 
-  // 3. Gestion des changements d'état d'authentification
-  supabaseClient.auth.onAuthStateChange((event, session) => {
-    if (event === 'SIGNED_IN' || session) {
-      showAppScreen();
-    } else if (event === 'SIGNED_OUT') {
-      showLoginScreen();
-    }
-  });
+      <!-- Cartes de statistiques rapides -->
+      <div style="display: flex; gap: 20px; margin-bottom: 25px;">
+        <div style="background: white; border-left: 5px solid #3498db; padding: 15px 20px; border-radius: 6px; flex: 1; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+          <h4 style="margin: 0; color: #7f8c8d; font-size: 0.9em; text-transform: uppercase;">Total Patients</h4>
+          <p id="stat-total-patients" style="font-size: 2em; font-weight: bold; margin: 5px 0 0 0; color: #2c3e50;">0</p>
+        </div>
+      </div>
 
-  // 4. Formulaire de connexion
-  const loginForm = document.getElementById('login-form');
-  if (loginForm) {
-    loginForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
+      <!-- Disposition du tableau de bord en 2 colonnes -->
+      <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+        <!-- Colonne Gauche : Formulaire de création -->
+        <div style="flex: 1; min-width: 300px; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+          <h3 style="margin-top: 0; color: #2c3e50;">➕ Nouveau Patient</h3>
+          <form id="patient-form" style="display: flex; flex-direction: column; gap: 15px;">
+            <div>
+              <label for="patient-nom" style="display: block; margin-bottom: 5px; font-weight: bold;">Nom :</label>
+              <input type="text" id="patient-nom" required style="width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px;">
+            </div>
+            <div>
+              <label for="patient-prenom" style="display: block; margin-bottom: 5px; font-weight: bold;">Prénom :</label>
+              <input type="text" id="patient-prenom" required style="width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px;">
+            </div>
+            <div>
+              <label for="patient-dob" style="display: block; margin-bottom: 5px; font-weight: bold;">Date de naissance :</label>
+              <input type="date" id="patient-dob" style="width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px;">
+            </div>
+            <button type="submit" style="background: #2ecc71; color: white; border: none; padding: 10px; border-radius: 4px; font-weight: bold; cursor: pointer;">
+              Enregistrer le patient
+            </button>
+          </form>
+        </div>
 
-      const emailInput = document.getElementById('login-email') || document.getElementById('email');
-      const passwordInput = document.getElementById('login-password') || document.getElementById('password');
-      const errorMsg = document.getElementById('auth-error');
+        <!-- Colonne Droite : Patientèle -->
+        <div style="flex: 2; min-width: 320px; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+          <h3 style="margin-top: 0; color: #2c3e50;">👥 Liste des Patients</h3>
+          <div id="patient-list">
+            <p>Chargement des données...</p>
+          </div>
+        </div>
+      </div>
+    </section>
 
-      const email = emailInput ? emailInput.value.trim() : '';
-      const password = passwordInput ? passwordInput.value : '';
+  </div>
 
-      if (errorMsg) errorMsg.textContent = "Connexion en cours...";
-
-      const { data, error } = await supabaseClient.auth.signInWithPassword({
-        email: email,
-        password: password
-      });
-
-      if (error) {
-        if (errorMsg) {
-          errorMsg.textContent = "Erreur de connexion : " + error.message;
-        } else {
-          alert("Erreur de connexion : " + error.message);
-        }
-      } else {
-        if (errorMsg) errorMsg.textContent = "";
-        showAppScreen();
-      }
-    });
-  }
-
-  // 5. Formulaire de création de patient
-  const patientForm = document.getElementById('patient-form');
-  if (patientForm) {
-    patientForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-
-      // Récupération intelligente des champs (cherche 'patient-nom' OU 'nom')
-      const nomInput = document.getElementById('patient-nom') || document.getElementById('nom');
-      const prenomInput = document.getElementById('patient-prenom') || document.getElementById('prenom');
-      const dobInput = document.getElementById('patient-dob') || document.getElementById('date_naissance') || document.getElementById('date');
-
-      const nom = nomInput ? nomInput.value.trim() : '';
-      const prenom = prenomInput ? prenomInput.value.trim() : '';
-      
-      // Conversion de la date vide en null pour la base de données
-      const rawDate = dobInput ? dobInput.value : '';
-      const dateNaissance = rawDate !== '' ? rawDate : null;
-
-      const { data, error } = await supabaseClient
-        .from('patients')
-        .insert([{ 
-          nom: nom, 
-          prenom: prenom, 
-          date_naissance: dateNaissance 
-        }]);
-
-      if (error) {
-        alert("Erreur lors de la création : " + error.message);
-      } else {
-        alert("Patient créé avec succès !");
-        patientForm.reset();
-        await loadPatients();
-      }
-    });
-  }
-});
-
-// Fonctions de gestion de l'affichage
-function showAppScreen() {
-  const loginSection = document.getElementById('login-section');
-  const appSection = document.getElementById('app-section');
-
-  if (loginSection) {
-    loginSection.style.display = 'none';
-    loginSection.classList.add('hidden');
-  }
-  if (appSection) {
-    appSection.style.display = 'block';
-    appSection.classList.remove('hidden');
-  }
-  loadPatients();
-}
-
-function showLoginScreen() {
-  const loginSection = document.getElementById('login-section');
-  const appSection = document.getElementById('app-section');
-
-  if (appSection) {
-    appSection.style.display = 'none';
-    appSection.classList.add('hidden');
-  }
-  if (loginSection) {
-    loginSection.style.display = 'block';
-    loginSection.classList.remove('hidden');
-  }
-}
-
-// Chargement de la liste des patients
-async function loadPatients() {
-  const patientList = document.getElementById('patient-list');
-  if (!patientList || !supabaseClient) return;
-
-  patientList.innerHTML = "<p>Chargement des patients...</p>";
-
-  const { data: patients, error } = await supabaseClient
-    .from('patients')
-    .select('*');
-
-  if (error) {
-    patientList.innerHTML = `<p class="error-msg">Impossible de charger les patients : ${error.message}</p>`;
-    return;
-  }
-
-  if (!patients || patients.length === 0) {
-    patientList.innerHTML = "<p>Aucun patient enregistré pour le moment.</p>";
-    return;
-  }
-
-  patientList.innerHTML = patients.map(p => `
-    <div class="patient-card" style="border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; border-radius: 5px;">
-      <h3>${p.nom || ''} ${p.prenom || ''}</h3>
-      <p>Date de naissance : ${p.date_naissance || 'Non renseignée'}</p>
-    </div>
-  `).join('');
-}
-
-// Déconnexion
-async function logout() {
-  if (supabaseClient) await supabaseClient.auth.signOut();
-  showLoginScreen();
-}
+</body>
+</html>
