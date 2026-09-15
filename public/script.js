@@ -1,15 +1,27 @@
 const SUPABASE_URL = "https://iyxurkbceiirjdigcyak.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml5eHVya2JjZWlpcmpkaWdjeWFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkwNDYzODQsImV4cCI6MjEwNDYyMjM4NH0.MGBADlkxP307mbUvU_07OEhN5sfqv9_wSTqIP5AVK-s"; // Remplacez par votre clé Publishable Supabase
- 
-// Initialisation du client Supabase
-const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const SUPABASE_KEY = "VOTRE_CLE_JWT_ANON_ICI"; // Assurez-vous que votre clé commence par "eyJ..."
+
+// Variable globale pour stocker le client une fois prêt
+let supabaseClient;
 
 document.addEventListener('DOMContentLoaded', () => {
+  // Initialisation sécurisée une fois que tout le HTML et le CDN sont chargés
+  if (window.supabase) {
+    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  } else {
+    console.error("La bibliothèque Supabase n'a pas pu être chargée.");
+  }
+
   const loginForm = document.getElementById('login-form');
 
   if (loginForm) {
     loginForm.addEventListener('submit', async (e) => {
       e.preventDefault();
+
+      if (!supabaseClient) {
+        alert("Erreur : Le client Supabase n'est pas initialisé.");
+        return;
+      }
 
       const email = document.getElementById('login-email').value.trim();
       const password = document.getElementById('login-password').value;
@@ -28,7 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
       } else {
         if (errorMsg) errorMsg.textContent = "";
 
-        // 2. Bascule visuelle IMMÉDIATE
+        // 2. Bascule visuelle immédiate
         const loginSection = document.getElementById('login-section');
         const appSection = document.getElementById('app-section');
 
@@ -42,7 +54,7 @@ document.addEventListener('DOMContentLoaded', () => {
           appSection.classList.remove('hidden');
         }
 
-        // 3. Chargement des patients (séparé pour ne pas tout bloquer en cas d'erreur)
+        // 3. Chargement des patients
         try {
           await loadPatients();
         } catch (err) {
@@ -56,7 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // Charger la liste des patients depuis Supabase
 async function loadPatients() {
   const patientList = document.getElementById('patient-list');
-  if (!patientList) return;
+  if (!patientList || !supabaseClient) return;
 
   patientList.innerHTML = "<p>Chargement des patients...</p>";
 
@@ -98,7 +110,7 @@ function showSection(sectionId) {
 
 // Déconnexion
 async function logout() {
-  await supabaseClient.auth.signOut();
+  if (supabaseClient) await supabaseClient.auth.signOut();
   document.getElementById('app-section').style.display = 'none';
   document.getElementById('login-section').style.display = 'block';
 }
