@@ -1,11 +1,11 @@
 const SUPABASE_URL = "https://iyxurkbceiirjdigcyak.supabase.co";
-// N'oubliez pas de remettre votre clé JWT (celle qui commence par eyJ...)
+// Assurez-vous de coller votre clé JWT anon complète (commençant par eyJ...)
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml5eHVya2JjZWlpcmpkaWdjeWFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkwNDYzODQsImV4cCI6MjEwNDYyMjM4NH0.MGBADlkxP307mbUvU_07OEhN5sfqv9_wSTqIP5AVK-s"; 
 
 let supabaseClient;
 
 document.addEventListener('DOMContentLoaded', async () => {
-  // 1. Initialisation de Supabase une fois le CDN disponible
+  // 1. Initialisation du client Supabase
   if (window.supabase) {
     supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
   } else {
@@ -13,13 +13,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     return;
   }
 
-  // 2. Vérification de la session existante au chargement/rafraîchissement
+  // 2. Restauration de la session existante si l'utilisateur est déjà connecté
   const { data: { session } } = await supabaseClient.auth.getSession();
   if (session) {
     showAppScreen();
   }
 
-  // 3. Écoute des changements d'état (connexion / déconnexion)
+  // 3. Gestion des changements d'état d'authentification
   supabaseClient.auth.onAuthStateChange((event, session) => {
     if (event === 'SIGNED_IN' || session) {
       showAppScreen();
@@ -28,25 +28,32 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  // 4. Gestion du formulaire de connexion
+  // 4. Formulaire de connexion
   const loginForm = document.getElementById('login-form');
   if (loginForm) {
     loginForm.addEventListener('submit', async (e) => {
       e.preventDefault();
 
-      const email = document.getElementById('login-email').value.trim();
-      const password = document.getElementById('login-password').value;
+      const emailInput = document.getElementById('login-email');
+      const passwordInput = document.getElementById('login-password');
       const errorMsg = document.getElementById('auth-error');
+
+      const email = emailInput ? emailInput.value.trim() : '';
+      const password = passwordInput ? passwordInput.value : '';
 
       if (errorMsg) errorMsg.textContent = "Connexion en cours...";
 
-      const { error } = await supabaseClient.auth.signInWithPassword({
+      const { data, error } = await supabaseClient.auth.signInWithPassword({
         email: email,
         password: password
       });
 
       if (error) {
-        if (errorMsg) errorMsg.textContent = "Erreur : " + error.message;
+        if (errorMsg) {
+          errorMsg.textContent = "Erreur de connexion : " + error.message;
+        } else {
+          alert("Erreur de connexion : " + error.message);
+        }
       } else {
         if (errorMsg) errorMsg.textContent = "";
         showAppScreen();
@@ -54,7 +61,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
- // 5. Gestion de la création de patient
+  // 5. Formulaire de création de patient
   const patientForm = document.getElementById('patient-form');
   if (patientForm) {
     patientForm.addEventListener('submit', async (e) => {
@@ -67,7 +74,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const nom = nomInput ? nomInput.value.trim() : '';
       const prenom = prenomInput ? prenomInput.value.trim() : '';
       
-      // SI LA DATE EST VIDE, ON ENVOIE null ET NON PAS ""
+      // Gestion du champ date vide -> converti en null pour éviter l'erreur de syntaxe Supabase
       const rawDate = dobInput ? dobInput.value : '';
       const dateNaissance = rawDate !== '' ? rawDate : null;
 
@@ -88,8 +95,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     });
   }
+});
 
-// Fonctions d'affichage des écrans
+// Fonctions de gestion de l'affichage
 function showAppScreen() {
   const loginSection = document.getElementById('login-section');
   const appSection = document.getElementById('app-section');
@@ -119,7 +127,7 @@ function showLoginScreen() {
   }
 }
 
-// Charger la liste des patients depuis Supabase
+// Chargement de la liste des patients
 async function loadPatients() {
   const patientList = document.getElementById('patient-list');
   if (!patientList || !supabaseClient) return;
@@ -146,20 +154,6 @@ async function loadPatients() {
       <p>Date de naissance : ${p.date_naissance || 'Non renseignée'}</p>
     </div>
   `).join('');
-}
-
-// Navigation entre les rubriques
-function showSection(sectionId) {
-  document.querySelectorAll('.page-section').forEach(sec => {
-    sec.style.display = 'none';
-    sec.classList.add('hidden');
-  });
-  
-  const target = document.getElementById(sectionId);
-  if (target) {
-    target.style.display = 'block';
-    target.classList.remove('hidden');
-  }
 }
 
 // Déconnexion
