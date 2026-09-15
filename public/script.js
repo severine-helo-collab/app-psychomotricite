@@ -1,5 +1,5 @@
 const SUPABASE_URL = "https://iyxurkbceiirjdigcyak.supabase.co";
-const SUPABASE_KEY = "VOTRE_CLE_JWT_ANON_ICI"; // Assurez-vous que votre clé commence par "eyJ..."
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml5eHVya2JjZWlpcmpkaWdjeWFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkwNDYzODQsImV4cCI6MjEwNDYyMjM4NH0.MGBADlkxP307mbUvU_07OEhN5sfqv9_wSTqIP5AVK-s"; // Assurez-vous que votre clé commence par "eyJ..."
 
 // Variable globale pour stocker le client une fois prêt
 let supabaseClient;
