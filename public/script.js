@@ -1,6 +1,6 @@
 // Clés de connexion Supabase
 const SUPABASE_URL = "https://iyxurkbceiirjdigcyak.supabase.co";
-const SUPABASE_KEY = "iyxurkbceiirjdigcyak";
+const SUPABASE_KEY = "sb_publishable_sh-ADFDD3oHC5Y-YDizzhQ_lW7qU461";
 var supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // Gestion de la connexion (Email + Mot de passe)
