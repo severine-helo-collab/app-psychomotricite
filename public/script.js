@@ -1,5 +1,5 @@
 const SUPABASE_URL = "https://iyxurkbceiirjdigcyak.supabase.co";
-// Assurez-vous de coller votre clé JWT anon complète (commençant par eyJ...)
+// N'oubliez pas de remettre votre vraie clé JWT anon (commençant par eyJ...)
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml5eHVya2JjZWlpcmpkaWdjeWFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkwNDYzODQsImV4cCI6MjEwNDYyMjM4NH0.MGBADlkxP307mbUvU_07OEhN5sfqv9_wSTqIP5AVK-s"; 
 
 let supabaseClient;
@@ -34,8 +34,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     loginForm.addEventListener('submit', async (e) => {
       e.preventDefault();
 
-      const emailInput = document.getElementById('login-email');
-      const passwordInput = document.getElementById('login-password');
+      const emailInput = document.getElementById('login-email') || document.getElementById('email');
+      const passwordInput = document.getElementById('login-password') || document.getElementById('password');
       const errorMsg = document.getElementById('auth-error');
 
       const email = emailInput ? emailInput.value.trim() : '';
@@ -67,14 +67,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     patientForm.addEventListener('submit', async (e) => {
       e.preventDefault();
 
-      const nomInput = document.getElementById('patient-nom');
-      const prenomInput = document.getElementById('patient-prenom');
-      const dobInput = document.getElementById('patient-dob');
+      // Récupération intelligente des champs (cherche 'patient-nom' OU 'nom')
+      const nomInput = document.getElementById('patient-nom') || document.getElementById('nom');
+      const prenomInput = document.getElementById('patient-prenom') || document.getElementById('prenom');
+      const dobInput = document.getElementById('patient-dob') || document.getElementById('date_naissance') || document.getElementById('date');
 
       const nom = nomInput ? nomInput.value.trim() : '';
       const prenom = prenomInput ? prenomInput.value.trim() : '';
       
-      // Gestion du champ date vide -> converti en null pour éviter l'erreur de syntaxe Supabase
+      // Conversion de la date vide en null pour la base de données
       const rawDate = dobInput ? dobInput.value : '';
       const dateNaissance = rawDate !== '' ? rawDate : null;
 
