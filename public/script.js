@@ -4,23 +4,24 @@ const SUPABASE_KEY = "sb_publishable_sh-ADFDD3oHC5Y-YDizzhQ_lW7qU461";
 var supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // Gestion de la connexion (Email + Mot de passe)
-const loginForm = document.getElementById('login-form');
-if (loginForm) {
-  loginForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const email = document.getElementById('login-email').value;
-    const password = document.getElementById('login-password').value;
-    const errorMsg = document.getElementById('auth-error');
+const loginForm = document.getElementById('login-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
 
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-
-    if (error) {
-      errorMsg.textContent = "Identifiants incorrects.";
-    } else {
-      errorMsg.textContent = "";
-      checkUser();
-    }
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: email,
+    password: password
   });
+
+  if (error) {
+    alert("Erreur de connexion : " + error.message);
+  } else {
+    document.getElementById('login-section').style.display = 'none';
+    document.getElementById('dashboard-section').style.display = 'block';
+  }
+});
 }
 
 // Déconnexion
