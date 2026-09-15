@@ -15,7 +15,9 @@ document.addEventListener('DOMContentLoaded', () => {
       const password = document.getElementById('login-password').value;
       const errorMsg = document.getElementById('auth-error');
 
-      // Tentative de connexion Supabase
+      if (errorMsg) errorMsg.textContent = "Connexion en cours...";
+
+      // 1. Authentification
       const { data, error } = await supabaseClient.auth.signInWithPassword({
         email: email,
         password: password
@@ -24,38 +26,46 @@ document.addEventListener('DOMContentLoaded', () => {
       if (error) {
         if (errorMsg) errorMsg.textContent = "Erreur : " + error.message;
       } else {
-        // 1. Masquer l'écran de connexion (force l'affichage direct + classe)
+        if (errorMsg) errorMsg.textContent = "";
+
+        // 2. Bascule visuelle IMMÉDIATE
         const loginSection = document.getElementById('login-section');
+        const appSection = document.getElementById('app-section');
+
         if (loginSection) {
           loginSection.style.display = 'none';
           loginSection.classList.add('hidden');
         }
 
-        // 2. Afficher l'application principale (force l'affichage direct + classe)
-        const appSection = document.getElementById('app-section');
         if (appSection) {
           appSection.style.display = 'block';
           appSection.classList.remove('hidden');
         }
 
-        // 3. Charger la liste des patients
-        loadPatients();
+        // 3. Chargement des patients (séparé pour ne pas tout bloquer en cas d'erreur)
+        try {
+          await loadPatients();
+        } catch (err) {
+          console.error("Erreur lors du chargement des patients :", err);
+        }
       }
     });
   }
 });
 
-// Charger la liste des patients
+// Charger la liste des patients depuis Supabase
 async function loadPatients() {
   const patientList = document.getElementById('patient-list');
   if (!patientList) return;
+
+  patientList.innerHTML = "<p>Chargement des patients...</p>";
 
   const { data: patients, error } = await supabaseClient
     .from('patients')
     .select('*');
 
   if (error) {
-    patientList.innerHTML = `<p class="error-msg">Erreur de chargement : ${error.message}</p>`;
+    patientList.innerHTML = `<p class="error-msg">Impossible de charger les patients : ${error.message}</p>`;
     return;
   }
 
@@ -72,7 +82,7 @@ async function loadPatients() {
   `).join('');
 }
 
-// Navigation entre les rubriques
+// Navigation entre les sections
 function showSection(sectionId) {
   document.querySelectorAll('.page-section').forEach(sec => {
     sec.style.display = 'none';
