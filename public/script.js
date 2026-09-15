@@ -1,27 +1,38 @@
 const SUPABASE_URL = "https://iyxurkbceiirjdigcyak.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml5eHVya2JjZWlpcmpkaWdjeWFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkwNDYzODQsImV4cCI6MjEwNDYyMjM4NH0.MGBADlkxP307mbUvU_07OEhN5sfqv9_wSTqIP5AVK-s"; // Assurez-vous que votre clé commence par "eyJ..."
+// N'oubliez pas de remettre votre clé JWT (celle qui commence par eyJ...)
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml5eHVya2JjZWlpcmpkaWdjeWFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkwNDYzODQsImV4cCI6MjEwNDYyMjM4NH0.MGBADlkxP307mbUvU_07OEhN5sfqv9_wSTqIP5AVK-s"; 
 
-// Variable globale pour stocker le client une fois prêt
 let supabaseClient;
 
-document.addEventListener('DOMContentLoaded', () => {
-  // Initialisation sécurisée une fois que tout le HTML et le CDN sont chargés
+document.addEventListener('DOMContentLoaded', async () => {
+  // 1. Initialisation de Supabase une fois le CDN disponible
   if (window.supabase) {
     supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
   } else {
-    console.error("La bibliothèque Supabase n'a pas pu être chargée.");
+    console.error("La bibliothèque Supabase n'est pas chargée.");
+    return;
   }
 
-  const loginForm = document.getElementById('login-form');
+  // 2. Vérification de la session existante au chargement/rafraîchissement
+  const { data: { session } } = await supabaseClient.auth.getSession();
+  if (session) {
+    showAppScreen();
+  }
 
+  // 3. Écoute des changements d'état (connexion / déconnexion)
+  supabaseClient.auth.onAuthStateChange((event, session) => {
+    if (event === 'SIGNED_IN' || session) {
+      showAppScreen();
+    } else if (event === 'SIGNED_OUT') {
+      showLoginScreen();
+    }
+  });
+
+  // 4. Gestion du formulaire de connexion
+  const loginForm = document.getElementById('login-form');
   if (loginForm) {
     loginForm.addEventListener('submit', async (e) => {
       e.preventDefault();
-
-      if (!supabaseClient) {
-        alert("Erreur : Le client Supabase n'est pas initialisé.");
-        return;
-      }
 
       const email = document.getElementById('login-email').value.trim();
       const password = document.getElementById('login-password').value;
@@ -29,8 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (errorMsg) errorMsg.textContent = "Connexion en cours...";
 
-      // 1. Authentification
-      const { data, error } = await supabaseClient.auth.signInWithPassword({
+      const { error } = await supabaseClient.auth.signInWithPassword({
         email: email,
         password: password
       });
@@ -39,31 +49,69 @@ document.addEventListener('DOMContentLoaded', () => {
         if (errorMsg) errorMsg.textContent = "Erreur : " + error.message;
       } else {
         if (errorMsg) errorMsg.textContent = "";
+        showAppScreen();
+      }
+    });
+  }
 
-        // 2. Bascule visuelle immédiate
-        const loginSection = document.getElementById('login-section');
-        const appSection = document.getElementById('app-section');
+  // 5. Gestion de la création de patient (sans rechargement de page)
+  const patientForm = document.getElementById('patient-form');
+  if (patientForm) {
+    patientForm.addEventListener('submit', async (e) => {
+      e.preventDefault(); // Empêche le rechargement de la page qui vous renvoyait sur l'écran de connexion
 
-        if (loginSection) {
-          loginSection.style.display = 'none';
-          loginSection.classList.add('hidden');
-        }
+      const nomInput = document.getElementById('patient-nom');
+      const prenomInput = document.getElementById('patient-prenom');
+      const dobInput = document.getElementById('patient-dob');
 
-        if (appSection) {
-          appSection.style.display = 'block';
-          appSection.classList.remove('hidden');
-        }
+      const nom = nomInput ? nomInput.value.trim() : '';
+      const prenom = prenomInput ? prenomInput.value.trim() : '';
+      const dateNaissance = dobInput ? dobInput.value : '';
 
-        // 3. Chargement des patients
-        try {
-          await loadPatients();
-        } catch (err) {
-          console.error("Erreur lors du chargement des patients :", err);
-        }
+      const { data, error } = await supabaseClient
+        .from('patients')
+        .insert([{ nom, prenom, date_naissance: dateNaissance }]);
+
+      if (error) {
+        alert("Erreur lors de la création : " + error.message);
+      } else {
+        alert("Patient créé avec succès !");
+        patientForm.reset();
+        await loadPatients(); // Rafraîchit la liste automatiquement
       }
     });
   }
 });
+
+// Fonctions d'affichage des écrans
+function showAppScreen() {
+  const loginSection = document.getElementById('login-section');
+  const appSection = document.getElementById('app-section');
+
+  if (loginSection) {
+    loginSection.style.display = 'none';
+    loginSection.classList.add('hidden');
+  }
+  if (appSection) {
+    appSection.style.display = 'block';
+    appSection.classList.remove('hidden');
+  }
+  loadPatients();
+}
+
+function showLoginScreen() {
+  const loginSection = document.getElementById('login-section');
+  const appSection = document.getElementById('app-section');
+
+  if (appSection) {
+    appSection.style.display = 'none';
+    appSection.classList.add('hidden');
+  }
+  if (loginSection) {
+    loginSection.style.display = 'block';
+    loginSection.classList.remove('hidden');
+  }
+}
 
 // Charger la liste des patients depuis Supabase
 async function loadPatients() {
@@ -94,7 +142,7 @@ async function loadPatients() {
   `).join('');
 }
 
-// Navigation entre les sections
+// Navigation entre les rubriques
 function showSection(sectionId) {
   document.querySelectorAll('.page-section').forEach(sec => {
     sec.style.display = 'none';
@@ -111,6 +159,5 @@ function showSection(sectionId) {
 // Déconnexion
 async function logout() {
   if (supabaseClient) await supabaseClient.auth.signOut();
-  document.getElementById('app-section').style.display = 'none';
-  document.getElementById('login-section').style.display = 'block';
+  showLoginScreen();
 }
