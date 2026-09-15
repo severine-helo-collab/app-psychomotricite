@@ -1,5 +1,5 @@
 const SUPABASE_URL = "https://iyxurkbceiirjdigcyak.supabase.co";
-const SUPABASE_KEY = "VOTRE_CLE_PUBLISHABLE_ICI"; // Mettez votre clé Publishable ici
+const SUPABASE_KEY = "sb_publishable_sh-ADFDD3oHC5Y-YDizzhQ_lW7qU461"; // Mettez votre clé Publishable ici
 
 document.addEventListener('submit', async (e) => {
   if (e.target && e.target.id === 'login-form') {
