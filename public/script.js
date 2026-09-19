@@ -2,9 +2,15 @@
 // 1. CONFIGURATION SUPABASE
 // ==========================================
 const SUPABASE_URL = 'https://iyxurkbceiirjdigcyak.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml5eHVya2JjZWlpcmpkaWdjeWFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkwNDYzODQsImV4cCI6MjEwNDYyMjM4NH0.MGBADlkxP307mbUvU_07OEhN5sfqv9_wSTqIP5AVK-s';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml5eHVya2JjZWlpcmpkaWdjeWFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkwNDYzODQsImV4cCI6MjEwNDYyMjM4NH0.MGBADlkxP307mbUvU_07OEhN5sfqv9_wSTqIP5AVK-';
 
-const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+let supabaseClient;
+
+try {
+  supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+} catch (err) {
+  console.error("Erreur d'initialisation Supabase :", err);
+}
 
 // Variables globales
 let allPatients = [];
@@ -19,10 +25,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupNavigation();
   setupForms();
 
-  // Vérifie si l'utilisateur est déjà connecté
-  const { data: { session } } = await supabaseClient.auth.getSession();
-  if (session) {
-    showApplication();
+  if (!supabaseClient) return;
+
+  try {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (session) {
+      showApplication();
+    }
+  } catch (e) {
+    console.error("Erreur de session :", e);
   }
 });
 
@@ -54,25 +65,27 @@ function setupAuth() {
   if (authForm) {
     authForm.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const email = document.getElementById('auth-email').value;
-      const password = document.getElementById('auth-password').value;
+      const email = document.getElementById('auth-email').value.trim();
+      const password = document.getElementById('auth-password').value.trim();
 
       btnAuthSubmit.disabled = true;
       btnAuthSubmit.innerText = 'Veuillez patienter...';
 
       if (isLoginMode) {
-        const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+        const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
         if (error) {
           alert('Erreur de connexion : ' + error.message);
-        } else {
+        } else if (data.session) {
           showApplication();
         }
       } else {
-        const { error } = await supabaseClient.auth.signUp({ email, password });
+        const { data, error } = await supabaseClient.auth.signUp({ email, password });
         if (error) {
           alert("Erreur d'inscription : " + error.message);
+        } else if (data.session) {
+          showApplication();
         } else {
-          alert("Inscription réussie ! Vous pouvez vous connecter.");
+          alert("Compte créé ! Vous pouvez vous connecter.");
           isLoginMode = true;
           authSubtitle.innerText = 'Connectez-vous à votre espace';
           btnAuthSubmit.innerText = 'Se connecter';
@@ -87,7 +100,7 @@ function setupAuth() {
 
   if (btnLogout) {
     btnLogout.addEventListener('click', async () => {
-      await supabaseClient.auth.signOut();
+      if (supabaseClient) await supabaseClient.auth.signOut();
       hideApplication();
     });
   }
@@ -108,7 +121,7 @@ function hideApplication() {
 }
 
 // ==========================================
-// 4. NAVIGATION INTERNE (SIDEBAR)
+// 4. NAVIGATION INTERNE (SIDEBAR / ONGLETS)
 // ==========================================
 function setupNavigation() {
   const navDashboard = document.getElementById('nav-dashboard');
@@ -230,6 +243,7 @@ function setupForms() {
 // 6. GESTION PATIENTS
 // ==========================================
 async function loadPatients() {
+  if (!supabaseClient) return;
   const { data, error } = await supabaseClient.from('patients').select('*').order('nom');
   if (error) return console.error(error);
   allPatients = data || [];
@@ -296,6 +310,7 @@ window.deletePatient = async function(id) {
 // 7. GESTION RENDEZ-VOUS & FINANCES
 // ==========================================
 async function loadRendezvous() {
+  if (!supabaseClient) return;
   const { data, error } = await supabaseClient
     .from('rendezvous')
     .select('*, patients(nom, prenom)')
@@ -304,9 +319,46 @@ async function loadRendezvous() {
   if (error) return console.error(error);
   allRendezvous = data || [];
 
+  renderUpcomingRendezvous(allRendezvous);
   renderRendezvous(allRendezvous);
   renderFinance(allRendezvous);
   updateDashboardStats(allRendezvous);
+}
+
+// AFFICHE LES PROCHAINS RDV DANS LE TABLEAU DE BORD (PAGE CENTRALE)
+function renderUpcomingRendezvous(rdvList) {
+  const tbody = document.getElementById('dashboard-upcoming-rdv-body');
+  if (!tbody) return;
+
+  const now = new Date();
+  // Filtre les RDV à partir de maintenant et trie du plus proche au plus lointain
+  const upcoming = rdvList
+    .filter(rdv => new Date(rdv.date_heure) >= now)
+    .sort((a, b) => new Date(a.date_heure) - new Date(b.date_heure))
+    .slice(0, 8); // Affiche les 8 prochains RDV
+
+  if (upcoming.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">Aucun rendez-vous à venir</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = '';
+  upcoming.forEach(rdv => {
+    const dateFormatted = new Date(rdv.date_heure).toLocaleString('fr-FR', {
+      day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+    });
+    const patientName = rdv.patients ? `${rdv.patients.nom} ${rdv.patients.prenom}` : 'Inconnu';
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><strong>${patientName}</strong></td>
+      <td><span class="badge bg-light text-dark border"><i class="bi bi-clock me-1"></i>${dateFormatted}</span></td>
+      <td>${rdv.motif || '-'}</td>
+      <td><strong>${rdv.tarif || 0} €</strong></td>
+      <td><span class="badge ${rdv.statut_paiement === 'Réglé' ? 'bg-success' : 'bg-warning text-dark'}">${rdv.statut_paiement || 'En attente'}</span></td>
+    `;
+    tbody.appendChild(tr);
+  });
 }
 
 function renderRendezvous(rdvList) {
