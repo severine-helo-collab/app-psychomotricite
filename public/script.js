@@ -46,7 +46,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     else {
       document.getElementById('patient-form').reset();
       await loadPatients();
-      if (data && data.length > 0) openPatientCard(data[0]);
+      if (data && data.length > 0) openPatientCard(data[0].id);
     }
   });
 
@@ -186,7 +186,7 @@ async function loadPatients() {
     }
 
     return `
-      <div class="patient-item ${currentPatient && currentPatient.id === p.id ? 'active' : ''}" onclick='openPatientCard(${JSON.stringify(p)})'>
+      <div class="patient-item ${currentPatient && currentPatient.id === p.id ? 'active' : ''}" onclick="openPatientCard('${p.id}')">
         <div>
           <strong>👤 ${p.nom} ${p.prenom}</strong>
           ${p.telephone ? `<div style="font-size:0.8em; color:#555;">📞 ${p.telephone}</div>` : ''}
@@ -198,10 +198,20 @@ async function loadPatients() {
   }).join('');
 }
 
-// Ouvrir la fiche patient
-function openPatientCard(patient) {
+// Ouvrir la fiche patient (récupération directe en temps réel depuis Supabase)
+async function openPatientCard(patientId) {
+  const { data: patient, error } = await supabaseClient
+    .from('patients')
+    .select('*')
+    .eq('id', patientId)
+    .single();
+
+  if (error || !patient) {
+    alert("Impossible de charger la fiche du patient.");
+    return;
+  }
+
   currentPatient = patient;
-  loadPatients();
 
   document.getElementById('empty-state').classList.add('hidden');
   document.getElementById('patient-detail-card').classList.remove('hidden');
