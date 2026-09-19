@@ -117,12 +117,15 @@
                 <strong style="color: #2980b9;">📅 Prochain Rendez-vous</strong>
                 <span id="display-prochain-rdv" style="font-weight: bold; color: #2c3e50;">Aucun RDV prévu</span>
               </div>
-              <form id="rdv-form" style="display: flex; gap: 8px;">
-                <input type="datetime-local" id="input-prochain-rdv" style="flex: 1;">
-                <button type="submit" class="btn-primary" style="background: #3498db; padding: 6px 12px;">Enregistrer RDV</button>
-              </form>
-            </div>
+             <div style="margin-top: 15px; background: #ebf5fb; padding: 12px; border-radius: 6px; border-left: 4px solid #3498db;">
+  <strong>📅 Prochain Rendez-vous :</strong> 
+  <span id="display-prochain-rdv" style="font-weight: bold; color: #2980b9;">Aucun RDV prévu</span>
 
+  <form id="rdv-form" style="display: flex; gap: 8px; margin-top: 8px;">
+    <input type="datetime-local" id="input-prochain-rdv" style="padding: 6px; border: 1px solid #ccc; border-radius: 4px; flex: 1;">
+    <button type="submit" style="background: #3498db; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold;">Enregistrer</button>
+  </form>
+</div>
             <!-- Formulaire Ajouter Séance pour CE Patient -->
             <div style="background: #fdfafb; padding: 15px; border-radius: 6px; border: 1px solid #f3e9f8; margin-bottom: 20px;">
               <h4 style="margin-top: 0; color: #8e44ad;">+ Enregistrer une séance</h4>
