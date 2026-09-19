@@ -1,613 +1,475 @@
 // ==========================================
 // 1. CONFIGURATION SUPABASE
 // ==========================================
+// Remplacez ces valeurs par vos identifiants Supabase (Projet -> Settings -> API)
 const SUPABASE_URL = 'https://iyxurkbceiirjdigcyak.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml5eHVya2JjZWlpcmpkaWdjeWFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkwNDYzODQsImV4cCI6MjEwNDYyMjM4NH0.MGBADlkxP307mbUvU_07OEhN5sfqv9_wSTqIP5AVK-s';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml5eHVya2JjZWlpcmpkaWdjeWFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkwNDYzODQsImV4cCI6MjEwNDYyMjM4NH0.MGBADlkxP307mbUvU_07OEhN5sfqv9_wSTqIP5AVK-s';
 
-let supabaseClient;
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-try {
-  supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-} catch (err) {
-  console.error("Erreur d'initialisation Supabase :", err);
-}
-
-// Variables globales
-let allPatients = [];
-let allRendezvous = [];
-let isLoginMode = true;
-
-// Fonctions utilitaires
-function calculerAge(dateNaissance) {
-  if (!dateNaissance) return 'Non renseigné';
-  const aujourdhui = new Date();
-  const naissance = new Date(dateNaissance);
-  let age = aujourdhui.getFullYear() - naissance.getFullYear();
-  const m = aujourdhui.getMonth() - naissance.getMonth();
-  if (m < 0 || (m === 0 && aujourdhui.getDate() < naissance.getDate())) {
-    age--;
-  }
-  return isNaN(age) ? 'Non renseigné' : `${age} ans`;
-}
+// Variables globales d'état
+let currentUser = null;
+let isSignUpMode = false;
+let patientsData = [];
+let rdvData = [];
 
 // ==========================================
-// 2. INITIALISATION AU DÉMARRAGE
+// 2. INITIALISATION ET ÉVÉNEMENTS
 // ==========================================
-document.addEventListener('DOMContentLoaded', async () => {
-  setupAuth();
-  setupNavigation();
-  setupForms();
-
-  if (!supabaseClient) return;
-
-  try {
-    const { data: { session } } = await supabaseClient.auth.getSession();
-    if (session) {
-      showApplication();
-    }
-  } catch (e) {
-    console.error("Erreur de session :", e);
-  }
+document.addEventListener('DOMContentLoaded', () => {
+  checkSession();
+  initEventListeners();
 });
 
-// ==========================================
-// 3. AUTHENTIFICATION
-// ==========================================
-function setupAuth() {
-  const authForm = document.getElementById('auth-form');
-  const toggleAuthModeBtn = document.getElementById('toggle-auth-mode');
-  const authSubtitle = document.getElementById('auth-subtitle');
-  const btnAuthSubmit = document.getElementById('btn-auth-submit');
-  const btnLogout = document.getElementById('btn-logout');
+function initEventListeners() {
+  // Bascule Mode Connexion / Inscription
+  document.getElementById('toggle-auth-mode').addEventListener('click', (e) => {
+    e.preventDefault();
+    isSignUpMode = !isSignUpMode;
+    const btnSubmit = document.getElementById('btn-auth-submit');
+    const subtitle = document.getElementById('auth-subtitle');
+    const toggleBtn = document.getElementById('toggle-auth-mode');
 
-  if (toggleAuthModeBtn) {
-    toggleAuthModeBtn.addEventListener('click', () => {
-      isLoginMode = !isLoginMode;
-      if (isLoginMode) {
-        authSubtitle.innerText = 'Connectez-vous à votre espace';
-        btnAuthSubmit.innerText = 'Se connecter';
-        toggleAuthModeBtn.innerText = "Pas encore de compte ? S'inscrire";
-      } else {
-        authSubtitle.innerText = 'Créez votre compte praticien';
-        btnAuthSubmit.innerText = "S'inscrire";
-        toggleAuthModeBtn.innerText = 'Déjà un compte ? Se connecter';
-      }
-    });
-  }
+    if (isSignUpMode) {
+      btnSubmit.textContent = "S'inscrire";
+      subtitle.textContent = "Créer un nouveau compte praticien";
+      toggleBtn.textContent = "Déjà un compte ? Se connecter";
+    } else {
+      btnSubmit.textContent = "Se connecter";
+      subtitle.textContent = "Connectez-vous à votre espace";
+      toggleBtn.textContent = "Pas encore de compte ? S'inscrire";
+    }
+  });
 
-  if (authForm) {
-    authForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const email = document.getElementById('auth-email').value.trim();
-      const password = document.getElementById('auth-password').value.trim();
+  // Soumission Authentification
+  document.getElementById('auth-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = document.getElementById('auth-email').value;
+    const password = document.getElementById('auth-password').value;
 
-      btnAuthSubmit.disabled = true;
-      btnAuthSubmit.innerText = 'Veuillez patienter...';
+    if (isSignUpMode) {
+      const { data, error } = await supabase.auth.signUp({ email, password });
+      if (error) alert("Erreur d'inscription : " + error.message);
+      else alert("Compte créé avec succès ! Vous pouvez vous connecter.");
+    } else {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) alert("Erreur de connexion : " + error.message);
+      else checkSession();
+    }
+  });
 
-      if (isLoginMode) {
-        const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
-        if (error) {
-          alert('Erreur de connexion : ' + error.message);
-        } else if (data.session) {
-          showApplication();
-        }
-      } else {
-        const { data, error } = await supabaseClient.auth.signUp({ email, password });
-        if (error) {
-          alert("Erreur d'inscription : " + error.message);
-        } else if (data.session) {
-          showApplication();
-        } else {
-          alert("Compte créé ! Vous pouvez vous connecter.");
-          isLoginMode = true;
-          authSubtitle.innerText = 'Connectez-vous à votre espace';
-          btnAuthSubmit.innerText = 'Se connecter';
-          toggleAuthModeBtn.innerText = "Pas encore de compte ? S'inscrire";
-        }
-      }
+  // Déconnexion
+  document.getElementById('btn-logout').addEventListener('click', async () => {
+    await supabase.auth.signOut();
+    checkSession();
+  });
 
-      btnAuthSubmit.disabled = false;
-      btnAuthSubmit.innerText = isLoginMode ? 'Se connecter' : "S'inscrire";
-    });
-  }
+  // Navigation
+  document.getElementById('nav-dashboard').addEventListener('click', () => switchTab('dashboard'));
+  document.getElementById('nav-patients').addEventListener('click', () => switchTab('patients'));
+  document.getElementById('nav-rendezvous').addEventListener('click', () => switchTab('rendezvous'));
+  document.getElementById('nav-finance').addEventListener('click', () => switchTab('finance'));
 
-  if (btnLogout) {
-    btnLogout.addEventListener('click', async () => {
-      if (supabaseClient) await supabaseClient.auth.signOut();
-      hideApplication();
-    });
-  }
-}
-
-function showApplication() {
-  document.getElementById('auth-section').style.display = 'none';
-  document.getElementById('app-section').style.display = 'block';
-  loadPatients();
-  loadRendezvous();
-}
-
-function hideApplication() {
-  document.getElementById('app-section').style.display = 'none';
-  document.getElementById('auth-section').style.display = 'block';
-  if (document.getElementById('auth-email')) document.getElementById('auth-email').value = '';
-  if (document.getElementById('auth-password')) document.getElementById('auth-password').value = '';
-}
-
-// ==========================================
-// 4. NAVIGATION INTERNE & CARTES DU DASHBOARD
-// ==========================================
-function setupNavigation() {
-  const navDashboard = document.getElementById('nav-dashboard');
-  const navPatients = document.getElementById('nav-patients');
-  const navRendezvous = document.getElementById('nav-rendezvous');
-  const navFinance = document.getElementById('nav-finance');
-
-  const sections = {
-    dashboard: document.getElementById('section-dashboard'),
-    patients: document.getElementById('section-patients'),
-    rendezvous: document.getElementById('section-rendezvous'),
-    finance: document.getElementById('section-finance')
-  };
-
-  function switchSection(activeNav, activeSection) {
-    [navDashboard, navPatients, navRendezvous, navFinance].forEach(nav => nav && nav.classList.remove('active'));
-    Object.values(sections).forEach(sec => sec && (sec.style.display = 'none'));
-    
-    if (activeNav) activeNav.classList.add('active');
-    if (activeSection) activeSection.style.display = 'block';
-  }
-
-  if (navDashboard) navDashboard.addEventListener('click', (e) => { e.preventDefault(); switchSection(navDashboard, sections.dashboard); });
-  if (navPatients) navPatients.addEventListener('click', (e) => { e.preventDefault(); switchSection(navPatients, sections.patients); });
-  if (navRendezvous) navRendezvous.addEventListener('click', (e) => { e.preventDefault(); switchSection(navRendezvous, sections.rendezvous); });
-  if (navFinance) navFinance.addEventListener('click', (e) => { e.preventDefault(); switchSection(navFinance, sections.finance); });
-
-  // Clics sur les cartes statistiques du Tableau de Bord
-  const cardStatPatients = document.getElementById('card-stat-patients');
-  if (cardStatPatients) {
-    cardStatPatients.addEventListener('click', () => {
-      switchSection(navPatients, sections.patients);
-    });
-  }
-
-  const cardStatRdv = document.getElementById('card-stat-rdv');
-  if (cardStatRdv) {
-    cardStatRdv.addEventListener('click', () => {
-      switchSection(navRendezvous, sections.rendezvous);
-    });
-  }
-
-  const cardStatFinance = document.getElementById('card-stat-finance');
-  if (cardStatFinance) {
-    cardStatFinance.addEventListener('click', () => {
-      switchSection(navFinance, sections.finance);
-    });
-  }
-}
-
-// ==========================================
-// 5. FORMULAIRES
-// ==========================================
-function setupForms() {
-  // Ajouter patient
-  const addPatientForm = document.getElementById('add-patient-form');
-  if (addPatientForm) {
-    addPatientForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const patientData = {
-        nom: document.getElementById('nom').value,
-        prenom: document.getElementById('prenom').value,
-        telephone: document.getElementById('telephone').value,
-        email: document.getElementById('email').value,
-        adresse: document.getElementById('adresse').value,
-        date_naissance: document.getElementById('date_naissance')?.value || null
-      };
-
-      const { error } = await supabaseClient.from('patients').insert([patientData]);
-      if (error) alert("Erreur : " + error.message);
-      else {
-        addPatientForm.reset();
-        bootstrap.Modal.getInstance(document.getElementById('addPatientModal')).hide();
-        loadPatients();
-      }
-    });
-  }
-
-  // Modifier patient
-  const editPatientForm = document.getElementById('edit-patient-form');
-  if (editPatientForm) {
-    editPatientForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const id = document.getElementById('edit-patient-id').value;
-      const patientData = {
-        nom: document.getElementById('edit-nom').value,
-        prenom: document.getElementById('edit-prenom').value,
-        telephone: document.getElementById('edit-telephone').value,
-        email: document.getElementById('edit-email').value,
-        adresse: document.getElementById('edit-adresse').value,
-        date_naissance: document.getElementById('edit-date-naissance')?.value || null
-      };
-
-      const { error } = await supabaseClient.from('patients').update(patientData).eq('id', id);
-      if (error) alert("Erreur : " + error.message);
-      else {
-        bootstrap.Modal.getInstance(document.getElementById('editPatientModal')).hide();
-        loadPatients();
-      }
-    });
-  }
-
-  // Ajouter RDV
-  const addRdvForm = document.getElementById('add-rdv-form');
-  if (addRdvForm) {
-    addRdvForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const rdvData = {
-        patient_id: document.getElementById('rdv-patient-select').value,
-        date_heure: document.getElementById('rdv-date').value,
-        motif: document.getElementById('rdv-motif').value,
-        tarif: parseFloat(document.getElementById('rdv-tarif')?.value || 0),
-        mode_paiement: document.getElementById('rdv-paiement')?.value || 'Espèces',
-        statut_paiement: document.getElementById('rdv-statut-paiement')?.value || 'Réglé',
-        resume: document.getElementById('rdv-resume')?.value || '',
-        statut: 'Planifié'
-      };
-
-      const { error } = await supabaseClient.from('rendezvous').insert([rdvData]);
-      if (error) alert('Erreur : ' + error.message);
-      else {
-        addRdvForm.reset();
-        bootstrap.Modal.getInstance(document.getElementById('addRendezvousModal')).hide();
-        loadRendezvous();
-      }
-    });
-  }
+  // Raccourcis cartes tableau de bord
+  document.getElementById('card-stat-patients').addEventListener('click', () => switchTab('patients'));
+  document.getElementById('card-stat-rdv').addEventListener('click', () => switchTab('rendezvous'));
+  document.getElementById('card-stat-finance').addEventListener('click', () => switchTab('finance'));
 
   // Recherche patient
-  const searchInput = document.getElementById('searchPatient');
-  if (searchInput) {
-    searchInput.addEventListener('input', (e) => {
-      const search = e.target.value.toLowerCase();
-      const filtered = allPatients.filter(p => 
-        (p.nom && p.nom.toLowerCase().includes(search)) || 
-        (p.prenom && p.prenom.toLowerCase().includes(search))
-      );
-      renderPatients(filtered);
-    });
-  }
+  document.getElementById('searchPatient').addEventListener('input', (e) => {
+    const term = e.target.value.toLowerCase();
+    const filtered = patientsData.filter(p => 
+      p.nom.toLowerCase().includes(term) || p.prenom.toLowerCase().includes(term)
+    );
+    renderPatientsTable(filtered);
+  });
+
+  // Formulaires Modals
+  document.getElementById('add-patient-form').addEventListener('submit', handleAddPatient);
+  document.getElementById('edit-patient-form').addEventListener('submit', handleEditPatient);
+  document.getElementById('add-rdv-form').addEventListener('submit', handleAddRendezvous);
 }
 
 // ==========================================
-// 6. GESTION PATIENTS (TRI ALPHABÉTIQUE A-Z)
+// 3. GESTION DE LA SESSION & NAVIGATION
 // ==========================================
-async function loadPatients() {
-  if (!supabaseClient) return;
-  const { data, error } = await supabaseClient.from('patients').select('*');
-  if (error) return console.error(error);
-  
-  // Tri alphabétique A-Z (Nom puis Prénom)
-  allPatients = (data || []).sort((a, b) => {
-    const nomA = (a.nom || '').toLowerCase();
-    const nomB = (b.nom || '').toLowerCase();
-    if (nomA !== nomB) {
-      return nomA.localeCompare(nomB, 'fr', { sensitivity: 'base' });
+async function checkSession() {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session) {
+    currentUser = session.user;
+    document.getElementById('auth-section').style.display = 'none';
+    document.getElementById('app-section').style.display = 'block';
+    await loadAllData();
+    switchTab('dashboard');
+  } else {
+    currentUser = null;
+    document.getElementById('auth-section').style.display = 'block';
+    document.getElementById('app-section').style.display = 'none';
+  }
+}
+
+function switchTab(tabName) {
+  const tabs = ['dashboard', 'patients', 'rendezvous', 'finance'];
+  tabs.forEach(tab => {
+    document.getElementById(`section-${tab}`).style.display = (tab === tabName) ? 'block' : 'none';
+    const navLink = document.getElementById(`nav-${tab}`);
+    if (navLink) {
+      if (tab === tabName) navLink.classList.add('active');
+      else navLink.classList.remove('active');
     }
-    const prenomA = (a.prenom || '').toLowerCase();
-    const prenomB = (b.prenom || '').toLowerCase();
-    return prenomA.localeCompare(prenomB, 'fr', { sensitivity: 'base' });
   });
 
-  renderPatients(allPatients);
-  updatePatientSelectOptions(allPatients);
+  if (tabName === 'dashboard') updateDashboard();
+}
+
+// ==========================================
+// 4. CHARGEMENT DES DONNÉES SUPABASE
+// ==========================================
+async function loadAllData() {
+  await Promise.all([fetchPatients(), fetchRendezvous()]);
+  populatePatientSelect();
   updateDashboard();
+  renderFinanceTable();
 }
 
-function renderPatients(patients) {
-  const tbody = document.getElementById('patients-table-body');
-  if (!tbody) return;
-  tbody.innerHTML = '';
+async function fetchPatients() {
+  const { data, error } = await supabase
+    .from('patients')
+    .select('*')
+    .order('nom', { ascending: true });
 
-  if (patients.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">Aucun patient enregistré</td></tr>';
-    return;
+  if (error) console.error("Erreur chargement patients:", error);
+  else {
+    patientsData = data || [];
+    renderPatientsTable(patientsData);
   }
-
-  patients.forEach(patient => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td><strong>${patient.nom || ''}</strong></td>
-      <td>${patient.prenom || ''}</td>
-      <td>${patient.telephone || '-'}</td>
-      <td>${patient.email || '-'}</td>
-      <td>${patient.adresse || '-'}</td>
-      <td class="text-end">
-        <button class="btn btn-sm btn-outline-info me-1" onclick="viewPatientDetails('${patient.id}')" title="Voir la fiche patient"><i class="bi bi-eye"></i></button>
-        <button class="btn btn-sm btn-outline-primary me-1" onclick="openEditPatientModal('${patient.id}')"><i class="bi bi-pencil"></i></button>
-        <button class="btn btn-sm btn-outline-danger" onclick="deletePatient('${patient.id}')"><i class="bi bi-trash"></i></button>
-      </td>
-    `;
-    tbody.appendChild(tr);
-  });
 }
 
-function updatePatientSelectOptions(patients) {
-  const select = document.getElementById('rdv-patient-select');
-  if (!select) return;
-  select.innerHTML = '<option value="">Choisir un patient...</option>';
-  patients.forEach(p => {
-    select.innerHTML += `<option value="${p.id}">${p.nom} ${p.prenom}</option>`;
-  });
-}
-
-// ==========================================
-// 7. FICHE DÉTAILLÉE PATIENT (ŒIL) + FINANCES
-// ==========================================
-window.viewPatientDetails = function(patientId) {
-  const patient = allPatients.find(p => p.id === patientId);
-  if (!patient) return;
-
-  // 1. Informations personnelles
-  const elemNom = document.getElementById('detail-patient-nom');
-  const elemDob = document.getElementById('detail-patient-dob');
-  const elemAge = document.getElementById('detail-patient-age');
-  const elemTel = document.getElementById('detail-patient-tel');
-  const elemEmail = document.getElementById('detail-patient-email');
-
-  if (elemNom) elemNom.innerText = `${patient.nom || ''} ${patient.prenom || ''}`;
-  if (elemDob) elemDob.innerText = patient.date_naissance ? new Date(patient.date_naissance).toLocaleDateString('fr-FR') : 'Non renseignée';
-  if (elemAge) elemAge.innerText = calculerAge(patient.date_naissance);
-  if (elemTel) elemTel.innerText = patient.telephone || '-';
-  if (elemEmail) elemEmail.innerText = patient.email || '-';
-
-  // 2. Séances & Calculs Financiers pour ce patient
-  const patientRdvs = allRendezvous.filter(r => r.patient_id === patientId);
-  const now = new Date();
-
-  const totalGenere = patientRdvs.reduce((sum, r) => sum + (parseFloat(r.tarif) || 0), 0);
-  const totalPaye = patientRdvs
-    .filter(r => r.statut_paiement === 'Réglé')
-    .reduce((sum, r) => sum + (parseFloat(r.tarif) || 0), 0);
-  const totalEnAttente = patientRdvs
-    .filter(r => r.statut_paiement !== 'Réglé')
-    .reduce((sum, r) => sum + (parseFloat(r.tarif) || 0), 0);
-
-  // Injection des données financières
-  const elemNbSeances = document.getElementById('detail-fin-nb-seances');
-  const elemTotalGenere = document.getElementById('detail-fin-total-genere');
-  const elemTotalPaye = document.getElementById('detail-fin-total-paye');
-  const elemTotalAttente = document.getElementById('detail-fin-total-attente');
-
-  if (elemNbSeances) elemNbSeances.innerText = patientRdvs.length;
-  if (elemTotalGenere) elemTotalGenere.innerText = totalGenere.toFixed(2) + ' €';
-  if (elemTotalPaye) elemTotalPaye.innerText = totalPaye.toFixed(2) + ' €';
-  if (elemTotalAttente) elemTotalAttente.innerText = totalEnAttente.toFixed(2) + ' €';
-
-  // 3. Tri des séances : À venir vs Passées
-  const upcoming = patientRdvs
-    .filter(r => new Date(r.date_heure) >= now)
-    .sort((a,b) => new Date(a.date_heure) - new Date(b.date_heure));
-
-  const history = patientRdvs
-    .filter(r => new Date(r.date_heure) < now)
-    .sort((a,b) => new Date(b.date_heure) - new Date(a.date_heure));
-
-  // Affichage des séances à venir
-  const upcomingContainer = document.getElementById('detail-rdv-a-venir');
-  if (upcomingContainer) {
-    if (upcoming.length === 0) {
-      upcomingContainer.innerHTML = '<p class="text-muted small">Aucune séance programmée.</p>';
-    } else {
-      upcomingContainer.innerHTML = upcoming.map(r => `
-        <div class="card mb-2 border-start border-4 border-primary shadow-sm">
-          <div class="card-body p-2">
-            <div class="d-flex justify-content-between align-items-center">
-              <strong><i class="bi bi-clock me-1"></i>${new Date(r.date_heure).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</strong>
-              <span class="badge ${r.statut_paiement === 'Réglé' ? 'bg-success' : 'bg-warning text-dark'}">${r.statut_paiement || 'En attente'}</span>
-            </div>
-            <div class="small mt-1"><strong>Motif :</strong> ${r.motif || 'Non précisé'}</div>
-            <div class="small"><strong>Tarif :</strong> ${r.tarif || 0} € (${r.mode_paiement || 'N/C'})</div>
-          </div>
-        </div>
-      `).join('');
-    }
-  }
-
-  // Affichage du suivi des séances passées
-  const historyContainer = document.getElementById('detail-rdv-historique');
-  if (historyContainer) {
-    if (history.length === 0) {
-      historyContainer.innerHTML = '<p class="text-muted small">Aucun historique de séance.</p>';
-    } else {
-      historyContainer.innerHTML = history.map(r => `
-        <div class="card mb-2 border-start border-4 border-success shadow-sm">
-          <div class="card-body p-2">
-            <div class="d-flex justify-content-between align-items-center">
-              <strong><i class="bi bi-calendar-check me-1"></i>${new Date(r.date_heure).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</strong>
-              <span class="badge ${r.statut_paiement === 'Réglé' ? 'bg-success' : 'bg-danger'}">${r.statut_paiement || 'En attente'}</span>
-            </div>
-            <div class="small mt-1"><strong>Motif :</strong> ${r.motif || 'Non précisé'}</div>
-            <div class="small"><strong>Montant :</strong> ${r.tarif || 0} € — <em>${r.mode_paiement || 'Mode non renseigné'}</em></div>
-            ${r.resume ? `<div class="small text-dark mt-1 p-2 bg-light rounded border"><em><strong>Résumé :</strong> ${r.resume}</em></div>` : ''}
-          </div>
-        </div>
-      `).join('');
-    }
-  }
-
-  // Ouverture de la fenêtre Modal Bootstrap
-  const modalEl = document.getElementById('patientDetailModal');
-  if (modalEl) {
-    const modal = new bootstrap.Modal(modalEl);
-    modal.show();
-  }
-};
-
-window.openEditPatientModal = function(id) {
-  const patient = allPatients.find(p => p.id === id);
-  if (!patient) return;
-
-  document.getElementById('edit-patient-id').value = patient.id;
-  document.getElementById('edit-nom').value = patient.nom || '';
-  document.getElementById('edit-prenom').value = patient.prenom || '';
-  document.getElementById('edit-telephone').value = patient.telephone || '';
-  document.getElementById('edit-email').value = patient.email || '';
-  document.getElementById('edit-adresse').value = patient.adresse || '';
-  if (document.getElementById('edit-date-naissance')) {
-    document.getElementById('edit-date-naissance').value = patient.date_naissance || '';
-  }
-
-  const modal = new bootstrap.Modal(document.getElementById('editPatientModal'));
-  modal.show();
-};
-
-window.deletePatient = async function(id) {
-  if (confirm('Supprimer ce patient ?')) {
-    const { error } = await supabaseClient.from('patients').delete().eq('id', id);
-    if (error) alert('Erreur : ' + error.message);
-    else loadPatients();
-  }
-};
-
-// ==========================================
-// 8. GESTION RENDEZ-VOUS & FINANCES
-// ==========================================
-async function loadRendezvous() {
-  if (!supabaseClient) return;
-  const { data, error } = await supabaseClient
+async function fetchRendezvous() {
+  const { data, error } = await supabase
     .from('rendezvous')
     .select('*, patients(nom, prenom)')
     .order('date_heure', { ascending: false });
 
-  if (error) return console.error(error);
-  allRendezvous = data || [];
-
-  renderUpcomingRendezvous(allRendezvous);
-  renderRendezvous(allRendezvous);
-  renderFinance(allRendezvous);
-  updateDashboardStats(allRendezvous);
+  if (error) console.error("Erreur chargement RDV:", error);
+  else {
+    rdvData = data || [];
+    renderRdvTable(rdvData);
+  }
 }
 
-function renderUpcomingRendezvous(rdvList) {
-  const tbody = document.getElementById('dashboard-upcoming-rdv-body');
-  if (!tbody) return;
-
-  const now = new Date();
-  const upcoming = rdvList
-    .filter(rdv => new Date(rdv.date_heure) >= now)
-    .sort((a, b) => new Date(a.date_heure) - new Date(b.date_heure))
-    .slice(0, 8);
-
-  if (upcoming.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">Aucun rendez-vous à venir</td></tr>';
+// ==========================================
+// 5. AFFICHAGE ET LOGIQUE DES PATIENTS
+// ==========================================
+function renderPatientsTable(patients) {
+  const tbody = document.getElementById('patients-table-body');
+  if (patients.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">Aucun patient trouvé.</td></tr>';
     return;
   }
 
-  tbody.innerHTML = '';
-  upcoming.forEach(rdv => {
-    const dateFormatted = new Date(rdv.date_heure).toLocaleString('fr-FR', {
-      day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
-    });
-    const patientName = rdv.patients ? `${rdv.patients.nom} ${rdv.patients.prenom}` : 'Inconnu';
-
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td><strong>${patientName}</strong></td>
-      <td><span class="badge bg-light text-dark border"><i class="bi bi-clock me-1"></i>${dateFormatted}</span></td>
-      <td>${rdv.motif || '-'}</td>
-      <td><strong>${rdv.tarif || 0} €</strong></td>
-      <td><span class="badge ${rdv.statut_paiement === 'Réglé' ? 'bg-success' : 'bg-warning text-dark'}">${rdv.statut_paiement || 'En attente'}</span></td>
-    `;
-    tbody.appendChild(tr);
-  });
-}
-
-function renderRendezvous(rdvList) {
-  const tbody = document.getElementById('rdv-table-body');
-  if (!tbody) return;
-  tbody.innerHTML = '';
-
-  rdvList.forEach(rdv => {
-    const dateFormatted = new Date(rdv.date_heure).toLocaleString('fr-FR', {
-      day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
-    });
-    const patientName = rdv.patients ? `${rdv.patients.nom} ${rdv.patients.prenom}` : 'Inconnu';
-
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td><strong>${patientName}</strong></td>
-      <td>${dateFormatted}</td>
-      <td>${rdv.motif || '-'}</td>
-      <td><strong>${rdv.tarif || 0} €</strong></td>
-      <td><span class="badge ${rdv.statut_paiement === 'Réglé' ? 'bg-success' : 'bg-warning text-dark'}">${rdv.statut_paiement || 'En attente'}</span></td>
+  tbody.innerHTML = patients.map(p => `
+    <tr>
+      <td class="fw-bold">${p.nom}</td>
+      <td>${p.prenom}</td>
+      <td>${p.telephone || '-'}</td>
+      <td>${p.email || '-'}</td>
+      <td><small class="text-muted">${p.adresse || '-'}</small></td>
       <td class="text-end">
-        <button class="btn btn-sm btn-outline-danger" onclick="deleteRendezvous('${rdv.id}')"><i class="bi bi-trash"></i></button>
+        <button class="btn btn-sm btn-outline-info me-1" onclick="openPatientDetail('${p.id}')" title="Voir la fiche"><i class="bi bi-eye"></i></button>
+        <button class="btn btn-sm btn-outline-primary me-1" onclick="openEditPatientModal('${p.id}')" title="Modifier"><i class="bi bi-pencil"></i></button>
+        <button class="btn btn-sm btn-outline-danger" onclick="deletePatient('${p.id}')" title="Supprimer"><i class="bi bi-trash"></i></button>
       </td>
-    `;
-    tbody.appendChild(tr);
-  });
+    </tr>
+  `).join('');
 }
 
-function renderFinance(rdvList) {
-  const tbody = document.getElementById('finance-table-body');
-  if (!tbody) return;
-  tbody.innerHTML = '';
+async function handleAddPatient(e) {
+  e.preventDefault();
+  const newPatient = {
+    user_id: currentUser.id,
+    nom: document.getElementById('nom').value,
+    prenom: document.getElementById('prenom').value,
+    date_naissance: document.getElementById('date_naissance').value || null,
+    telephone: document.getElementById('telephone').value || null,
+    email: document.getElementById('email').value || null,
+    adresse: document.getElementById('adresse').value || null
+  };
 
-  rdvList.forEach(rdv => {
-    const dateFormatted = new Date(rdv.date_heure).toLocaleDateString('fr-FR');
-    const patientName = rdv.patients ? `${rdv.patients.nom} ${rdv.patients.prenom}` : 'Inconnu';
-
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${dateFormatted}</td>
-      <td><strong>${patientName}</strong></td>
-      <td>${rdv.motif || 'Consultation'}</td>
-      <td><span class="badge bg-secondary">${rdv.mode_paiement || 'Espèces'}</span></td>
-      <td><span class="badge ${rdv.statut_paiement === 'Réglé' ? 'bg-success' : 'bg-danger'}">${rdv.statut_paiement || 'En attente'}</span></td>
-      <td><strong>${rdv.tarif || 0} €</strong></td>
-    `;
-    tbody.appendChild(tr);
-  });
-}
-
-window.deleteRendezvous = async function(id) {
-  if (confirm('Supprimer ce rendez-vous ?')) {
-    const { error } = await supabaseClient.from('rendezvous').delete().eq('id', id);
-    if (error) alert('Erreur : ' + error.message);
-    else loadRendezvous();
+  const { error } = await supabase.from('patients').insert([newPatient]);
+  if (error) alert("Erreur lors de l'ajout : " + error.message);
+  else {
+    bootstrap.Modal.getInstance(document.getElementById('addPatientModal')).hide();
+    document.getElementById('add-patient-form').reset();
+    await loadAllData();
   }
-};
+}
+
+function openEditPatientModal(patientId) {
+  const p = patientsData.find(item => item.id === patientId);
+  if (!p) return;
+
+  document.getElementById('edit-patient-id').value = p.id;
+  document.getElementById('edit-nom').value = p.nom;
+  document.getElementById('edit-prenom').value = p.prenom;
+  document.getElementById('edit-date-naissance').value = p.date_naissance || '';
+  document.getElementById('edit-telephone').value = p.telephone || '';
+  document.getElementById('edit-email').value = p.email || '';
+  document.getElementById('edit-adresse').value = p.adresse || '';
+
+  new bootstrap.Modal(document.getElementById('editPatientModal')).show();
+}
+
+async function handleEditPatient(e) {
+  e.preventDefault();
+  const id = document.getElementById('edit-patient-id').value;
+  const updatedPatient = {
+    nom: document.getElementById('edit-nom').value,
+    prenom: document.getElementById('edit-prenom').value,
+    date_naissance: document.getElementById('edit-date-naissance').value || null,
+    telephone: document.getElementById('edit-telephone').value || null,
+    email: document.getElementById('edit-email').value || null,
+    adresse: document.getElementById('edit-adresse').value || null
+  };
+
+  const { error } = await supabase.from('patients').update(updatedPatient).eq('id', id);
+  if (error) alert("Erreur de modification : " + error.message);
+  else {
+    bootstrap.Modal.getInstance(document.getElementById('editPatientModal')).hide();
+    await loadAllData();
+  }
+}
+
+async function deletePatient(id) {
+  if (confirm("Êtes-vous sûr de vouloir supprimer ce patient ? Tous ses RDV seront également supprimés.")) {
+    const { error } = await supabase.from('patients').delete().eq('id', id);
+    if (error) alert("Erreur lors de la suppression : " + error.message);
+    else await loadAllData();
+  }
+}
 
 // ==========================================
-// 9. DASHBOARD STATS
+// 6. FICHE DÉTAILLÉE DU PATIENT (MODAL OEIL)
+// ==========================================
+function openPatientDetail(patientId) {
+  const patient = patientsData.find(p => p.id === patientId);
+  if (!patient) return;
+
+  // Information Personnelles
+  document.getElementById('detail-patient-nom').textContent = `${patient.nom.toUpperCase()} ${patient.prenom}`;
+  document.getElementById('detail-patient-tel').textContent = patient.telephone || 'Non renseigné';
+  document.getElementById('detail-patient-email').textContent = patient.email || 'Non renseigné';
+  
+  if (patient.date_naissance) {
+    const dob = new Date(patient.date_naissance);
+    document.getElementById('detail-patient-dob').textContent = dob.toLocaleDateString('fr-FR');
+    const age = Math.floor((new Date() - dob) / (365.25 * 24 * 60 * 60 * 1000));
+    document.getElementById('detail-patient-age').textContent = `${age} ans`;
+  } else {
+    document.getElementById('detail-patient-dob').textContent = 'Non renseignée';
+    document.getElementById('detail-patient-age').textContent = '-';
+  }
+
+  // Filtrage des rendez-vous du patient
+  const patientRdvs = rdvData.filter(r => r.patient_id === patientId);
+  const now = new Date();
+
+  // Bilan Financier individuel
+  const nbSeances = patientRdvs.length;
+  const totalGenere = patientRdvs.reduce((acc, r) => acc + (parseFloat(r.tarif) || 0), 0);
+  const totalPaye = patientRdvs.filter(r => r.statut_paiement === 'Réglé').reduce((acc, r) => acc + (parseFloat(r.tarif) || 0), 0);
+  const totalAttente = patientRdvs.filter(r => r.statut_paiement === 'En attente').reduce((acc, r) => acc + (parseFloat(r.tarif) || 0), 0);
+
+  document.getElementById('detail-fin-nb-seances').textContent = nbSeances;
+  document.getElementById('detail-fin-total-genere').textContent = `${totalGenere.toFixed(2)} €`;
+  document.getElementById('detail-fin-total-paye').textContent = `${totalPaye.toFixed(2)} €`;
+  document.getElementById('detail-fin-total-attente').textContent = `${totalAttente.toFixed(2)} €`;
+
+  // Séances à venir vs Historique
+  const upcoming = patientRdvs.filter(r => new Date(r.date_heure) >= now).sort((a,b) => new Date(a.date_heure) - new Date(b.date_heure));
+  const history = patientRdvs.filter(r => new Date(r.date_heure) < now).sort((a,b) => new Date(b.date_heure) - new Date(a.date_heure));
+
+  // Affichage séances à venir
+  const upcomingDiv = document.getElementById('detail-rdv-a-venir');
+  if (upcoming.length === 0) {
+    upcomingDiv.innerHTML = '<p class="text-muted small">Aucune séance à venir.</p>';
+  } else {
+    upcomingDiv.innerHTML = upcoming.map(r => `
+      <div class="p-2 mb-2 bg-white rounded border border-primary border-start-4 shadow-sm">
+        <div class="fw-bold text-dark">${new Date(r.date_heure).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}</div>
+        <div class="small text-muted">${r.motif} - ${parseFloat(r.tarif).toFixed(2)} €</div>
+      </div>
+    `).join('');
+  }
+
+  // Affichage historique
+  const historyDiv = document.getElementById('detail-rdv-historique');
+  if (history.length === 0) {
+    historyDiv.innerHTML = '<p class="text-muted small">Aucun historique disponible.</p>';
+  } else {
+    historyDiv.innerHTML = history.map(r => `
+      <div class="p-2 mb-2 bg-light rounded border">
+        <div class="d-flex justify-content-between">
+          <span class="fw-bold small">${new Date(r.date_heure).toLocaleDateString('fr-FR')}</span>
+          <span class="badge ${r.statut_paiement === 'Réglé' ? 'bg-success' : 'bg-warning text-dark'}">${r.statut_paiement}</span>
+        </div>
+        <div class="small text-dark fw-bold mt-1">${r.motif} (${parseFloat(r.tarif).toFixed(2)} €)</div>
+        ${r.resume ? `<div class="extra-small text-muted fst-italic mt-1">${r.resume}</div>` : ''}
+      </div>
+    `).join('');
+  }
+
+  new bootstrap.Modal(document.getElementById('patientDetailModal')).show();
+}
+
+// ==========================================
+// 7. GESTION DES RENDEZ-VOUS & SÉANCES
+// ==========================================
+function populatePatientSelect() {
+  const select = document.getElementById('rdv-patient-select');
+  select.innerHTML = '<option value="">-- Sélectionner un patient --</option>' + 
+    patientsData.map(p => `<option value="${p.id}">${p.nom.toUpperCase()} ${p.prenom}</option>`).join('');
+}
+
+function renderRdvTable(rdvs) {
+  const tbody = document.getElementById('rdv-table-body');
+  if (rdvs.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">Aucun rendez-vous.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = rdvs.map(r => {
+    const patientName = r.patients ? `${r.patients.nom.toUpperCase()} ${r.patients.prenom}` : 'Patient inconnu';
+    const dateFormatted = new Date(r.date_heure).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' });
+    const isPaye = r.statut_paiement === 'Réglé';
+
+    return `
+      <tr>
+        <td class="fw-bold">${patientName}</td>
+        <td>${dateFormatted}</td>
+        <td>${r.motif}</td>
+        <td>${parseFloat(r.tarif).toFixed(2)} €</td>
+        <td>
+          <span class="badge ${isPaye ? 'bg-success' : 'bg-warning text-dark'}" style="cursor:pointer;" onclick="togglePaymentStatus('${r.id}', '${r.statut_paiement}')">
+            ${r.statut_paiement} <i class="bi bi-arrow-repeat ms-1"></i>
+          </span>
+        </td>
+        <td class="text-end">
+          <button class="btn btn-sm btn-outline-danger" onclick="deleteRendezvous('${r.id}')"><i class="bi bi-trash"></i></button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+async function handleAddRendezvous(e) {
+  e.preventDefault();
+  const newRdv = {
+    user_id: currentUser.id,
+    patient_id: document.getElementById('rdv-patient-select').value,
+    date_heure: document.getElementById('rdv-date').value,
+    motif: document.getElementById('rdv-motif').value,
+    tarif: parseFloat(document.getElementById('rdv-tarif').value) || 0,
+    mode_paiement: document.getElementById('rdv-paiement').value,
+    statut_paiement: document.getElementById('rdv-statut-paiement').value,
+    resume: document.getElementById('rdv-resume').value || null
+  };
+
+  const { error } = await supabase.from('rendezvous').insert([newRdv]);
+  if (error) alert("Erreur lors de l'ajout du RDV : " + error.message);
+  else {
+    bootstrap.Modal.getInstance(document.getElementById('addRendezvousModal')).hide();
+    document.getElementById('add-rdv-form').reset();
+    await loadAllData();
+  }
+}
+
+async function togglePaymentStatus(rdvId, currentStatus) {
+  const newStatus = currentStatus === 'Réglé' ? 'En attente' : 'Réglé';
+  const { error } = await supabase.from('rendezvous').update({ statut_paiement: newStatus }).eq('id', rdvId);
+  if (error) alert("Erreur lors du changement de statut : " + error.message);
+  else await loadAllData();
+}
+
+async function deleteRendezvous(id) {
+  if (confirm("Supprimer ce rendez-vous ?")) {
+    const { error } = await supabase.from('rendezvous').delete().eq('id', id);
+    if (error) alert("Erreur de suppression : " + error.message);
+    else await loadAllData();
+  }
+}
+
+// ==========================================
+// 8. TABLEAU DE BORD & COMPTABILITÉ
 // ==========================================
 function updateDashboard() {
-  const el = document.getElementById('stat-patients-count');
-  if (el) el.innerText = allPatients.length;
-}
-
-function updateDashboardStats(rdvData) {
-  const elRdv = document.getElementById('stat-rdv-count');
-  if (elRdv) elRdv.innerText = rdvData.length;
+  document.getElementById('stat-patients-count').textContent = patientsData.length;
 
   const now = new Date();
-  const currentMonth = now.getMonth();
-  const currentYear = now.getFullYear();
   const todayStr = now.toISOString().split('T')[0];
 
-  const rdvToday = rdvData.filter(rdv => rdv.date_heure && rdv.date_heure.startsWith(todayStr));
-  const elToday = document.getElementById('stat-rdv-today-count');
-  if (elToday) elToday.innerText = rdvToday.length;
+  const rdvToday = rdvData.filter(r => r.date_heure.startsWith(todayStr));
+  document.getElementById('stat-rdv-today-count').textContent = rdvToday.length;
+  document.getElementById('stat-rdv-count').textContent = rdvData.length;
 
-  const caMois = rdvData
-    .filter(rdv => {
-      const d = new Date(rdv.date_heure);
-      return d.getMonth() === currentMonth && d.getFullYear() === currentYear && rdv.statut_paiement === 'Réglé';
-    })
-    .reduce((sum, rdv) => sum + (parseFloat(rdv.tarif) || 0), 0);
+  // Calcul CA du mois courant
+  const currentMonth = now.getMonth();
+  const currentYear = now.getFullYear();
 
-  const elCaMois = document.getElementById('stat-ca-mois');
-  if (elCaMois) elCaMois.innerText = caMois.toFixed(2) + ' €';
+  const caMois = rdvData.filter(r => {
+    const d = new Date(r.date_heure);
+    return d.getMonth() === currentMonth && d.getFullYear() === currentYear && r.statut_paiement === 'Réglé';
+  }).reduce((acc, r) => acc + (parseFloat(r.tarif) || 0), 0);
 
-  const elCaFinance = document.getElementById('finance-total-mois');
-  if (elCaFinance) elCaFinance.innerText = caMois.toFixed(2) + ' €';
+  document.getElementById('stat-ca-mois').textContent = `${caMois.toFixed(2)} €`;
+
+  // Prochains RDV sur le tableau de bord
+  const upcomingRdvs = rdvData
+    .filter(r => new Date(r.date_heure) >= now)
+    .sort((a,b) => new Date(a.date_heure) - new Date(b.date_heure))
+    .slice(0, 5);
+
+  const dashboardTable = document.getElementById('dashboard-upcoming-rdv-body');
+  if (upcomingRdvs.length === 0) {
+    dashboardTable.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">Aucun rendez-vous à venir.</td></tr>';
+  } else {
+    dashboardTable.innerHTML = upcomingRdvs.map(r => {
+      const pName = r.patients ? `${r.patients.nom.toUpperCase()} ${r.patients.prenom}` : 'Patient inconnu';
+      return `
+        <tr>
+          <td class="fw-bold">${pName}</td>
+          <td>${new Date(r.date_heure).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}</td>
+          <td>${r.motif}</td>
+          <td>${parseFloat(r.tarif).toFixed(2)} €</td>
+          <td><span class="badge ${r.statut_paiement === 'Réglé' ? 'bg-success' : 'bg-warning text-dark'}">${r.statut_paiement}</span></td>
+        </tr>
+      `;
+    }).join('');
+  }
+}
+
+function renderFinanceTable() {
+  const tbody = document.getElementById('finance-table-body');
+  if (rdvData.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">Aucune transaction enregistrée.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = rdvData.map(r => {
+    const pName = r.patients ? `${r.patients.nom.toUpperCase()} ${r.patients.prenom}` : 'Patient inconnu';
+    return `
+      <tr>
+        <td>${new Date(r.date_heure).toLocaleDateString('fr-FR')}</td>
+        <td class="fw-bold">${pName}</td>
+        <td>${r.motif}</td>
+        <td>${r.mode_paiement || 'Espèces'}</td>
+        <td><span class="badge ${r.statut_paiement === 'Réglé' ? 'bg-success' : 'bg-warning text-dark'}">${r.statut_paiement}</span></td>
+        <td class="fw-bold ${r.statut_paiement === 'Réglé' ? 'text-success' : 'text-muted'}">${parseFloat(r.tarif).toFixed(2)} €</td>
+      </tr>
+    `;
+  }).join('');
+
+  // Total encaissé global affiché sur la page compta
+  const totalEncaisse = rdvData.filter(r => r.statut_paiement === 'Réglé').reduce((acc, r) => acc + (parseFloat(r.tarif) || 0), 0);
+  document.getElementById('finance-total-mois').textContent = `${totalEncaisse.toFixed(2)} €`;
 }
