@@ -71,11 +71,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     const nom = document.getElementById('patient-nom').value.trim();
     const prenom = document.getElementById('patient-prenom').value.trim();
     const telephone = document.getElementById('patient-tel').value.trim();
+    const adresse = document.getElementById('patient-adresse')?.value.trim() || '';
     const rawDate = document.getElementById('patient-dob').value;
     
     const { data, error } = await supabaseClient
       .from('patients')
-      .insert([{ nom, prenom, telephone, date_naissance: rawDate !== '' ? rawDate : null }])
+      .insert([{ nom, prenom, telephone, adresse, date_naissance: rawDate !== '' ? rawDate : null }])
       .select();
 
     if (error) alert("Erreur : " + error.message);
@@ -83,6 +84,38 @@ document.addEventListener('DOMContentLoaded', async () => {
       document.getElementById('patient-form').reset();
       await loadPatients();
       if (data && data.length > 0) openPatientCard(data[0].id);
+    }
+  });
+
+  // Modification Patient
+  document.getElementById('edit-patient-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!currentPatient) return;
+
+    const nom = document.getElementById('edit-patient-nom').value.trim();
+    const prenom = document.getElementById('edit-patient-prenom').value.trim();
+    const telephone = document.getElementById('edit-patient-tel').value.trim();
+    const adresse = document.getElementById('edit-patient-adresse').value.trim();
+    const rawDate = document.getElementById('edit-patient-dob').value;
+
+    const { error } = await supabaseClient
+      .from('patients')
+      .update({
+        nom,
+        prenom,
+        telephone,
+        adresse,
+        date_naissance: rawDate !== '' ? rawDate : null
+      })
+      .eq('id', currentPatient.id);
+
+    if (error) {
+      alert("Erreur lors de la modification : " + error.message);
+    } else {
+      closeEditPatientModal();
+      await openPatientCard(currentPatient.id);
+      await loadPatients();
+      alert("Coordonnées du patient mises à jour !");
     }
   });
 
@@ -263,14 +296,35 @@ async function openPatientCard(patientId) {
   }
 
   const telText = patient.telephone ? `<a href="tel:${patient.telephone}" style="color: #2980b9; text-decoration: none;">📞 ${patient.telephone}</a>` : '📞 Non renseigné';
+  const adresseText = patient.adresse ? `📍 ${patient.adresse}` : '📍 Adresse non renseignée';
   
   document.getElementById('detail-patient-info').innerHTML = `
     <span>🎂 ${dobText}</span>
     <span>${telText}</span>
+    <span>${adresseText}</span>
   `;
 
   updateRdvDisplay();
   loadSeancesForCurrentPatient();
+}
+
+// Modal pour éditer le patient
+function openEditPatientModal() {
+  if (!currentPatient) return;
+
+  document.getElementById('edit-patient-nom').value = currentPatient.nom || '';
+  document.getElementById('edit-patient-prenom').value = currentPatient.prenom || '';
+  document.getElementById('edit-patient-tel').value = currentPatient.telephone || '';
+  document.getElementById('edit-patient-adresse').value = currentPatient.adresse || '';
+  document.getElementById('edit-patient-dob').value = currentPatient.date_naissance || '';
+
+  const modal = document.getElementById('edit-patient-modal');
+  if (modal) modal.classList.remove('hidden');
+}
+
+function closeEditPatientModal() {
+  const modal = document.getElementById('edit-patient-modal');
+  if (modal) modal.classList.add('hidden');
 }
 
 function updateRdvDisplay() {
