@@ -4,6 +4,42 @@ const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 let supabaseClient;
 let currentPatient = null;
 
+// Fonction de calcul dynamique de l'âge (années et mois)
+function calculateAge(birthdateString) {
+  if (!birthdateString) return '';
+
+  const birthDate = new Date(birthdateString);
+  const today = new Date();
+
+  let years = today.getFullYear() - birthDate.getFullYear();
+  let months = today.getMonth() - birthDate.getMonth();
+
+  if (months < 0 || (months === 0 && today.getDate() < birthDate.getDate())) {
+    years--;
+    months += 12;
+  }
+
+  if (today.getDate() < birthDate.getDate()) {
+    months--;
+    if (months < 0) {
+      months += 12;
+    }
+  }
+
+  const yearsText = years > 0 ? `${years} ans` : '';
+  const monthsText = months > 0 ? `${months} mois` : '';
+
+  if (years > 0 && months > 0) {
+    return `${yearsText} ${monthsText}`;
+  } else if (years > 0) {
+    return yearsText;
+  } else if (months > 0) {
+    return monthsText;
+  } else {
+    return 'Moins de 1 mois';
+  }
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   if (window.supabase) {
     supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -198,7 +234,7 @@ async function loadPatients() {
   }).join('');
 }
 
-// Ouvrir la fiche patient (récupération directe en temps réel depuis Supabase)
+// Ouvrir la fiche patient
 async function openPatientCard(patientId) {
   const { data: patient, error } = await supabaseClient
     .from('patients')
@@ -218,11 +254,18 @@ async function openPatientCard(patientId) {
 
   document.getElementById('detail-patient-nom').textContent = `👤 ${patient.nom} ${patient.prenom}`;
   
-  const dobText = patient.date_naissance ? new Date(patient.date_naissance).toLocaleDateString('fr-FR') : 'Non renseignée';
+  // Formatage de la date de naissance et calcul de l'âge en gras
+  let dobText = 'Date de naissance non renseignée';
+  if (patient.date_naissance) {
+    const formattedDate = new Date(patient.date_naissance).toLocaleDateString('fr-FR');
+    const ageCalculated = calculateAge(patient.date_naissance);
+    dobText = `<strong>${ageCalculated}</strong> (${formattedDate})`;
+  }
+
   const telText = patient.telephone ? `<a href="tel:${patient.telephone}" style="color: #2980b9; text-decoration: none;">📞 ${patient.telephone}</a>` : '📞 Non renseigné';
   
   document.getElementById('detail-patient-info').innerHTML = `
-    <span>🎂 Date de naissance : ${dobText}</span>
+    <span>🎂 ${dobText}</span>
     <span>${telText}</span>
   `;
 
@@ -238,7 +281,6 @@ function updateRdvDisplay() {
     const d = new Date(currentPatient.prochain_rdv);
     display.textContent = `${d.toLocaleDateString('fr-FR')} à ${d.toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'})}`;
     
-    // Format compatible avec <input type="datetime-local"> (YYYY-MM-DDTHH:mm)
     const localIso = new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
     input.value = localIso;
   } else {
