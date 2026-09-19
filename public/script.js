@@ -5,11 +5,12 @@
 const SUPABASE_URL = 'https://iyxurkbceiirjdigcyak.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml5eHVya2JjZWlpcmpkaWdjeWFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkwNDYzODQsImV4cCI6MjEwNDYyMjM4NH0.MGBADlkxP307mbUvU_07OEhN5sfqv9_wSTqIP5AVK-s';
 
-const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+// Création du client sans conflit de variable
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // Variables globales
 let allPatients = [];
-let isLoginMode = true; // Bascule entre Connexion et Inscription
+let isLoginMode = true;
 
 // ==========================================
 // 2. INITIALISATION AU DÉMARRAGE
@@ -20,7 +21,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupForms();
 
   // Vérifie si un utilisateur est déjà connecté
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { session } } = await supabaseClient.auth.getSession();
   if (session) {
     showApplication();
   }
@@ -52,7 +53,7 @@ function setupAuth() {
     });
   }
 
-  // Soumission du formulaire (Connexion ou Inscription)
+  // Soumission du formulaire
   if (authForm) {
     authForm.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -64,7 +65,7 @@ function setupAuth() {
 
       if (isLoginMode) {
         // Connexion
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
         if (error) {
           alert('Erreur de connexion : ' + error.message);
         } else {
@@ -72,7 +73,7 @@ function setupAuth() {
         }
       } else {
         // Inscription
-        const { error } = await supabase.auth.signUp({ email, password });
+        const { error } = await supabaseClient.auth.signUp({ email, password });
         if (error) {
           alert("Erreur d'inscription : " + error.message);
         } else {
@@ -92,13 +93,13 @@ function setupAuth() {
   // Déconnexion
   if (btnLogout) {
     btnLogout.addEventListener('click', async () => {
-      await supabase.auth.signOut();
+      await supabaseClient.auth.signOut();
       hideApplication();
     });
   }
 }
 
-// Afficher l'application (cacher l'authentification)
+// Afficher l'application
 function showApplication() {
   document.getElementById('auth-section').style.display = 'none';
   document.getElementById('app-section').style.display = 'block';
@@ -107,7 +108,7 @@ function showApplication() {
   updateDashboard();
 }
 
-// Cacher l'application (afficher l'authentification)
+// Cacher l'application
 function hideApplication() {
   document.getElementById('app-section').style.display = 'none';
   document.getElementById('auth-section').style.display = 'block';
@@ -116,7 +117,7 @@ function hideApplication() {
 }
 
 // ==========================================
-// 4. NAVIGATION INTERNE (Sidebar)
+// 4. NAVIGATION INTERNE
 // ==========================================
 function setupNavigation() {
   const navDashboard = document.getElementById('nav-dashboard');
@@ -160,10 +161,10 @@ function setupForms() {
         adresse: document.getElementById('adresse').value
       };
 
-      const { error } = await supabase.from('patients').insert([patientData]);
+      const { error } = await supabaseClient.from('patients').insert([patientData]);
 
       if (error) {
-        alert('Erreur lors de l\'ajout du patient : ' + error.message);
+        alert("Erreur lors de l'ajout du patient : " + error.message);
       } else {
         addPatientForm.reset();
         bootstrap.Modal.getInstance(document.getElementById('addPatientModal')).hide();
@@ -186,7 +187,7 @@ function setupForms() {
         adresse: document.getElementById('edit-adresse').value
       };
 
-      const { error } = await supabase.from('patients').update(patientData).eq('id', id);
+      const { error } = await supabaseClient.from('patients').update(patientData).eq('id', id);
 
       if (error) {
         alert('Erreur lors de la mise à jour : ' + error.message);
@@ -209,7 +210,7 @@ function setupForms() {
         statut: 'Planifié'
       };
 
-      const { error } = await supabase.from('rendezvous').insert([rdvData]);
+      const { error } = await supabaseClient.from('rendezvous').insert([rdvData]);
 
       if (error) {
         alert('Erreur lors de la planification : ' + error.message);
@@ -221,7 +222,7 @@ function setupForms() {
     });
   }
 
-  // Recherche dynamique dans les patients
+  // Recherche dynamique
   const searchInput = document.getElementById('searchPatient');
   if (searchInput) {
     searchInput.addEventListener('input', (e) => {
@@ -239,7 +240,7 @@ function setupForms() {
 // 6. GESTION DES PATIENTS
 // ==========================================
 async function loadPatients() {
-  const { data, error } = await supabase.from('patients').select('*').order('nom');
+  const { data, error } = await supabaseClient.from('patients').select('*').order('nom');
   if (error) {
     console.error('Erreur chargement patients:', error);
     return;
@@ -302,7 +303,7 @@ window.openEditPatientModal = function(id) {
 
 window.deletePatient = async function(id) {
   if (confirm('Attention : Voulez-vous vraiment supprimer ce patient ?')) {
-    const { error } = await supabase.from('patients').delete().eq('id', id);
+    const { error } = await supabaseClient.from('patients').delete().eq('id', id);
     if (error) {
       alert('Erreur lors de la suppression : ' + error.message);
     } else {
@@ -315,7 +316,7 @@ window.deletePatient = async function(id) {
 // 7. GESTION DES RENDEZ-VOUS
 // ==========================================
 async function loadRendezvous() {
-  const { data, error } = await supabase
+  const { data, error } = await supabaseClient
     .from('rendezvous')
     .select('*, patients(nom, prenom)')
     .order('date_heure');
@@ -359,7 +360,7 @@ async function loadRendezvous() {
 
 window.deleteRendezvous = async function(id) {
   if (confirm('Voulez-vous supprimer ce rendez-vous ?')) {
-    const { error } = await supabase.from('rendezvous').delete().eq('id', id);
+    const { error } = await supabaseClient.from('rendezvous').delete().eq('id', id);
     if (error) {
       alert('Erreur : ' + error.message);
     } else {
