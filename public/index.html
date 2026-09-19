@@ -3,183 +3,246 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Suivi Psychomoteur</title>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <title>Gestion du Cabinet Médical</title>
+  <!-- Styles Bootstrap et Bootstrap Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
   <style>
-    * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-    body { background-color: #f4f6f9; margin: 0; padding: 20px; color: #333; }
-    .container { max-width: 1000px; margin: 0 auto; }
-    header { display: flex; justify-content: space-between; align-items: center; background: white; padding: 15px 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 20px; }
-    h1 { margin: 0; font-size: 1.4em; color: #8e44ad; }
-    .card { background: white; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 20px; }
-    .grid-layout { display: grid; grid-template-columns: 1fr 1.5fr; gap: 20px; }
-    @media (max-width: 768px) { .grid-layout { grid-template-columns: 1fr; } }
-    
-    input, select, textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.9em; }
-    button { cursor: pointer; border: none; padding: 10px 15px; border-radius: 6px; font-weight: bold; font-size: 0.9em; }
-    .btn-primary { background: #8e44ad; color: white; }
-    .btn-primary:hover { background: #732d91; }
-    .btn-danger { background: #e74c3c; color: white; }
-    
-    .patient-item { padding: 12px; border: 1px solid #eee; border-radius: 6px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: background 0.2s; }
-    .patient-item:hover { background: #f8f9fa; }
-    .patient-item.active { border-left: 4px solid #8e44ad; background: #f3e9f8; }
-
-    .seance-card { background: #fafafa; border: 1px solid #e0e0e0; border-radius: 6px; padding: 12px; margin-bottom: 12px; border-left: 4px solid #2ecc71; }
-    .seance-card.impaye { border-left-color: #e67e22; }
-
-    .hidden { display: none !important; }
+    body {
+      background-color: #f8f9fa;
+    }
+    .sidebar {
+      min-height: 100vh;
+      background-color: #343a40;
+    }
+    .sidebar a {
+      color: #cfd8dc;
+      text-decoration: none;
+    }
+    .sidebar a.active, .sidebar a:hover {
+      color: #ffffff;
+      background-color: #495057;
+    }
+    .card-custom {
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
   </style>
 </head>
 <body>
 
-  <div class="container">
-
-    <!-- Écran de Connexion -->
-    <div id="login-section" class="card" style="max-width: 400px; margin: 50px auto;">
-      <h2 style="text-align: center; color: #8e44ad;">Connexion Cabinet</h2>
-      <form id="login-form" style="display: flex; flex-direction: column; gap: 12px;">
-        <input type="email" id="login-email" placeholder="Email" required>
-        <input type="password" id="login-password" placeholder="Mot de passe" required>
-        <button type="submit" class="btn-primary">Se connecter</button>
-      </form>
-      <p id="auth-error" style="color: red; font-size: 0.85em; text-align: center; margin-top: 10px;"></p>
-    </div>
-
-    <!-- Écran Principal -->
-    <div id="app-section" class="hidden">
+  <!-- Conteneur Principal -->
+  <div class="container-fluid">
+    <div class="row">
       
-      <header>
-        <h1>📋 Suivi Cabinet Psychomotricité</h1>
-        <button onclick="logout()" class="btn-danger" style="padding: 6px 12px;">Déconnexion</button>
-      </header>
+      <!-- Barre de Navigation Latérale -->
+      <nav class="col-md-3 col-lg-2 d-md-block sidebar collapse p-3">
+        <h4 class="text-white text-center mb-4"><i class="bi bi-hospital"></i> Cabinet</h4>
+        <ul class="nav nav-pills flex-column mb-auto">
+          <li class="nav-item mb-2">
+            <a href="#" class="nav-link active" id="nav-patients">
+              <i class="bi bi-people me-2"></i> Patients
+            </a>
+          </li>
+          <li class="nav-item mb-2">
+            <a href="#" class="nav-link" id="nav-rendezvous">
+              <i class="bi bi-calendar-check me-2"></i> Rendez-vous
+            </a>
+          </li>
+        </ul>
+      </nav>
 
-      <!-- Résumé Financier -->
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
-        <div class="card" style="margin-bottom: 0;">
-          <small style="color: #666;">Total Patient(e)s</small>
-          <div id="stat-total-patients" style="font-size: 1.5em; font-weight: bold;">0</div>
-        </div>
-        <div class="card" style="margin-bottom: 0;">
-          <small style="color: #666;">Recettes Encaissées</small>
-          <div id="stat-recettes" style="font-size: 1.5em; font-weight: bold; color: #27ae60;">0.00 €</div>
-        </div>
-        <div class="card" style="margin-bottom: 0;">
-          <small style="color: #666;">Total Charges</small>
-          <div id="stat-charges" style="font-size: 1.5em; font-weight: bold; color: #c0392b;">0.00 €</div>
-        </div>
-        <div class="card" style="margin-bottom: 0;">
-          <small style="color: #666;">Bénéfice Net</small>
-          <div id="stat-benefice" style="font-size: 1.5em; font-weight: bold;">0.00 €</div>
-        </div>
-      </div>
+      <!-- Contenu Principal -->
+      <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 py-4">
 
-      <div class="grid-layout">
-        
-        <!-- Colonne Gauche : Liste & Ajout Patients -->
-        <div>
-          <div class="card">
-            <h3>+ Nouveau Patient</h3>
-            <form id="patient-form" style="display: flex; flex-direction: column; gap: 10px;">
-              <input type="text" id="patient-nom" placeholder="Nom" required>
-              <input type="text" id="patient-prenom" placeholder="Prénom" required>
-              <input type="tel" id="patient-tel" placeholder="Téléphone (ex: 06 12 34 56 78)">
-              <label style="font-size: 0.8em; color: #666; margin-bottom: -5px;">Date de naissance :</label>
-              <input type="date" id="patient-dob">
-              <button type="submit" class="btn-primary">+ Créer la fiche</button>
-            </form>
+        <!-- SECTION PATIENTS -->
+        <section id="section-patients">
+          <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2><i class="bi bi-people-fill text-primary"></i> Liste des Patients</h2>
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addPatientModal">
+              <i class="bi bi-person-plus-fill"></i> Ajouter un Patient
+            </button>
           </div>
 
-          <div class="card">
-            <h3>Patient(e)s enregistré(e)s</h3>
-            <div id="patient-list">Chargement...</div>
-          </div>
-        </div>
-
-        <!-- Colonne Droite : Fiche Patient Sélectionnée -->
-        <div>
-          <div id="empty-state" class="card" style="text-align: center; color: #7f8c8d; padding: 40px;">
-            👈 Sélectionnez un(e) patient(e) à gauche pour consulter sa fiche et ses séances.
+          <!-- Barre de recherche -->
+          <div class="mb-3">
+            <input type="text" id="searchPatient" class="form-control" placeholder="Rechercher un patient par nom ou prénom...">
           </div>
 
-          <div id="patient-detail-card" class="card hidden">
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 15px;">
-              <div>
-                <h2 id="detail-patient-nom" style="margin: 0; color: #2c3e50;">-</h2>
-                <div id="detail-patient-info" style="font-size: 0.85em; color: #7f8c8d; margin-top: 5px; display: flex; flex-direction: column; gap: 3px;"></div>
-              </div>
-              <button id="btn-delete-patient" class="btn-danger" style="font-size: 0.8em;">Supprimer la fiche</button>
+          <!-- Tableau des Patients -->
+          <div class="card card-custom p-3">
+            <div class="table-responsive">
+              <table class="table table-hover align-middle">
+                <thead class="table-light">
+                  <tr>
+                    <th>Nom</th>
+                    <th>Prénom</th>
+                    <th>Téléphone</th>
+                    <th>Email</th>
+                    <th>Adresse</th>
+                    <th class="text-end">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="patients-table-body">
+                  <!-- Chargement dynamique des patients -->
+                </tbody>
+              </table>
             </div>
+          </div>
+        </section>
 
-            <!-- Bloc Prochain Rendez-vous -->
-            <div style="background: #eef7fe; padding: 12px; border-radius: 6px; border: 1px solid #3498db; margin-bottom: 20px;">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                <strong style="color: #2980b9;">📅 Prochain Rendez-vous</strong>
-                <span id="display-prochain-rdv" style="font-weight: bold; color: #2c3e50;">Aucun RDV prévu</span>
-              </div>
-             <div style="margin-top: 15px; background: #ebf5fb; padding: 12px; border-radius: 6px; border-left: 4px solid #3498db;">
-  <strong>📅 Prochain Rendez-vous :</strong> 
-  <span id="display-prochain-rdv" style="font-weight: bold; color: #2980b9;">Aucun RDV prévu</span>
+        <!-- SECTION RENDEZ-VOUS -->
+        <section id="section-rendezvous" style="display: none;">
+          <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2><i class="bi bi-calendar-event-fill text-success"></i> Gestion des Rendez-vous</h2>
+            <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addRendezvousModal">
+              <i class="bi bi-calendar-plus-fill"></i> Nouveau Rendez-vous
+            </button>
+          </div>
 
-  <form id="rdv-form" style="display: flex; gap: 8px; margin-top: 8px;">
-    <input type="datetime-local" id="input-prochain-rdv" style="padding: 6px; border: 1px solid #ccc; border-radius: 4px; flex: 1;">
-    <button type="submit" style="background: #3498db; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold;">Enregistrer</button>
-  </form>
-</div>
-            <!-- Formulaire Ajouter Séance pour CE Patient -->
-            <div style="background: #fdfafb; padding: 15px; border-radius: 6px; border: 1px solid #f3e9f8; margin-bottom: 20px;">
-              <h4 style="margin-top: 0; color: #8e44ad;">+ Enregistrer une séance</h4>
-              <form id="seance-form" style="display: flex; flex-direction: column; gap: 10px;">
-                <input type="text" id="seance-titre" placeholder="Motif (ex: Séance 1, Bilan, Bilan psychomoteur...)" required>
-                <div style="display: flex; gap: 10px;">
-                  <input type="date" id="seance-date" style="flex: 1;">
-                  <input type="number" step="0.01" id="seance-montant" placeholder="Tarif (€)" value="45.00" required style="flex: 1;">
-                </div>
-                <textarea id="seance-notes" placeholder="Observations psychomotrices (tonus, motricité, écriture...)" rows="3"></textarea>
-                
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                  <select id="seance-mode" style="width: auto;">
-                    <option value="cheque">Chèque</option>
-                    <option value="especes">Espèces</option>
-                    <option value="carte">Carte</option>
-                    <option value="virement">Virement</option>
-                  </select>
-                  <label style="font-size: 0.85em; cursor: pointer;">
-                    <input type="checkbox" id="seance-paye" checked> Réglé
-                  </label>
-                  <button type="submit" class="btn-primary">Ajouter</button>
-                </div>
-              </form>
+          <div class="card card-custom p-3">
+            <div class="table-responsive">
+              <table class="table table-hover align-middle">
+                <thead class="table-light">
+                  <tr>
+                    <th>Patient</th>
+                    <th>Date & Heure</th>
+                    <th>Motif</th>
+                    <th>Statut</th>
+                    <th class="text-end">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="rdv-table-body">
+                  <!-- Chargement dynamique des RDV -->
+                </tbody>
+              </table>
             </div>
-
-            <!-- Historique des Séances -->
-            <h4 style="margin-bottom: 10px;">Historique des séances</h4>
-            <div id="seance-list">Aucune séance.</div>
           </div>
+        </section>
 
-          <!-- Section Charges / Comptabilité -->
-          <div class="card" style="margin-top: 20px;">
-            <h3>Dépenses / Charges</h3>
-            <form id="compta-form" style="display: flex; gap: 10px; margin-bottom: 15px;">
-              <input type="text" id="compta-titre" placeholder="Motif (Loyer, Matériel...)" required style="flex: 2;">
-              <input type="number" step="0.01" id="compta-montant" placeholder="Montant (€)" required style="flex: 1;">
-              <select id="compta-type" style="flex: 1;">
-                <option value="charge_fixe">Fixe</option>
-                <option value="materiel">Matériel</option>
-                <option value="autre">Autre</option>
-              </select>
-              <button type="submit" class="btn-primary">+</button>
-            </form>
-            <div id="compta-list"></div>
-          </div>
-        </div>
-
-      </div>
-
+      </main>
     </div>
-
   </div>
 
+  <!-- MODAL : AJOUTER UN PATIENT -->
+  <div class="modal fade" id="addPatientModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="bi bi-person-plus"></i> Nouveau Patient</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+        </div>
+        <form id="add-patient-form">
+          <div class="modal-body">
+            <div class="mb-3">
+              <label class="form-label">Nom</label>
+              <input type="text" id="nom" class="form-control" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Prénom</label>
+              <input type="text" id="prenom" class="form-control" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Téléphone</label>
+              <input type="tel" id="telephone" class="form-control">
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Email</label>
+              <input type="email" id="email" class="form-control">
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Adresse</label>
+              <input type="text" id="adresse" class="form-control" placeholder="123 rue Exemple, Paris">
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+            <button type="submit" class="btn btn-primary">Enregistrer</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL : MODIFIER UN PATIENT -->
+  <div class="modal fade" id="editPatientModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="bi bi-pencil-square"></i> Modifier le Patient</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+        </div>
+        <form id="edit-patient-form">
+          <input type="hidden" id="edit-patient-id">
+          <div class="modal-body">
+            <div class="mb-3">
+              <label class="form-label">Nom</label>
+              <input type="text" id="edit-nom" class="form-control" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Prénom</label>
+              <input type="text" id="edit-prenom" class="form-control" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Téléphone</label>
+              <input type="tel" id="edit-telephone" class="form-control">
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Email</label>
+              <input type="email" id="edit-email" class="form-control">
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Adresse</label>
+              <input type="text" id="edit-adresse" class="form-control">
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+            <button type="submit" class="btn btn-primary">Mettre à jour</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL : NOUVEAU RENDEZ-VOUS -->
+  <div class="modal fade" id="addRendezvousModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="bi bi-calendar-plus"></i> Planifier un Rendez-vous</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+        </div>
+        <form id="add-rdv-form">
+          <div class="modal-body">
+            <div class="mb-3">
+              <label class="form-label">Patient</label>
+              <select id="rdv-patient-select" class="form-select" required>
+                <!-- Chargement dynamique de la liste des patients -->
+              </select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Date et Heure</label>
+              <input type="datetime-local" id="rdv-date" class="form-control" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Motif</label>
+              <input type="text" id="rdv-motif" class="form-control" placeholder="Consultation générale, suivi...">
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+            <button type="submit" class="btn btn-success">Planifier</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts Bootstrap & Supabase SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- Script personnalisé -->
   <script src="script.js"></script>
 </body>
 </html>
