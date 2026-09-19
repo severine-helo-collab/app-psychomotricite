@@ -17,6 +17,19 @@ let allPatients = [];
 let allRendezvous = [];
 let isLoginMode = true;
 
+// Fonctions utilitaires
+function calculerAge(dateNaissance) {
+  if (!dateNaissance) return 'Non renseigné';
+  const aujourdhui = new Date();
+  const naissance = new Date(dateNaissance);
+  let age = aujourdhui.getFullYear() - naissance.getFullYear();
+  const m = aujourdhui.getMonth() - naissance.getMonth();
+  if (m < 0 || (m === 0 && aujourdhui.getDate() < naissance.getDate())) {
+    age--;
+  }
+  return isNaN(age) ? 'Non renseigné' : `${age} ans`;
+}
+
 // ==========================================
 // 2. INITIALISATION AU DÉMARRAGE
 // ==========================================
@@ -164,7 +177,8 @@ function setupForms() {
         prenom: document.getElementById('prenom').value,
         telephone: document.getElementById('telephone').value,
         email: document.getElementById('email').value,
-        adresse: document.getElementById('adresse').value
+        adresse: document.getElementById('adresse').value,
+        date_naissance: document.getElementById('date_naissance')?.value || null
       };
 
       const { error } = await supabaseClient.from('patients').insert([patientData]);
@@ -188,7 +202,8 @@ function setupForms() {
         prenom: document.getElementById('edit-prenom').value,
         telephone: document.getElementById('edit-telephone').value,
         email: document.getElementById('edit-email').value,
-        adresse: document.getElementById('edit-adresse').value
+        adresse: document.getElementById('edit-adresse').value,
+        date_naissance: document.getElementById('edit-date-naissance')?.value || null
       };
 
       const { error } = await supabaseClient.from('patients').update(patientData).eq('id', id);
@@ -212,6 +227,7 @@ function setupForms() {
         tarif: parseFloat(document.getElementById('rdv-tarif')?.value || 0),
         mode_paiement: document.getElementById('rdv-paiement')?.value || 'Espèces',
         statut_paiement: document.getElementById('rdv-statut-paiement')?.value || 'Réglé',
+        resume: document.getElementById('rdv-resume')?.value || '',
         statut: 'Planifié'
       };
 
@@ -266,6 +282,7 @@ function renderPatients(patients) {
       <td>${patient.email || '-'}</td>
       <td>${patient.adresse || '-'}</td>
       <td class="text-end">
+        <button class="btn btn-sm btn-outline-info me-1" onclick="viewPatientDetails('${patient.id}')" title="Voir la fiche patient"><i class="bi bi-eye"></i></button>
         <button class="btn btn-sm btn-outline-primary me-1" onclick="openEditPatientModal('${patient.id}')"><i class="bi bi-pencil"></i></button>
         <button class="btn btn-sm btn-outline-danger" onclick="deletePatient('${patient.id}')"><i class="bi bi-trash"></i></button>
       </td>
@@ -283,6 +300,81 @@ function updatePatientSelectOptions(patients) {
   });
 }
 
+// AFFICHAGE DE LA FICHE DETAIL PATIENT (MODAL)
+window.viewPatientDetails = function(patientId) {
+  const patient = allPatients.find(p => p.id === patientId);
+  if (!patient) return;
+
+  // Infos patient
+  const elemNom = document.getElementById('detail-patient-nom');
+  const elemDob = document.getElementById('detail-patient-dob');
+  const elemAge = document.getElementById('detail-patient-age');
+  const elemTel = document.getElementById('detail-patient-tel');
+  const elemEmail = document.getElementById('detail-patient-email');
+
+  if (elemNom) elemNom.innerText = `${patient.nom || ''} ${patient.prenom || ''}`;
+  if (elemDob) elemDob.innerText = patient.date_naissance ? new Date(patient.date_naissance).toLocaleDateString('fr-FR') : 'Non renseignée';
+  if (elemAge) elemAge.innerText = calculerAge(patient.date_naissance);
+  if (elemTel) elemTel.innerText = patient.telephone || '-';
+  if (elemEmail) elemEmail.innerText = patient.email || '-';
+
+  // Séances du patient
+  const patientRdvs = allRendezvous.filter(r => r.patient_id === patientId);
+  const now = new Date();
+
+  const upcoming = patientRdvs.filter(r => new Date(r.date_heure) >= now).sort((a,b) => new Date(a.date_heure) - new Date(b.date_heure));
+  const history = patientRdvs.filter(r => new Date(r.date_heure) < now).sort((a,b) => new Date(b.date_heure) - new Date(a.date_heure));
+
+  // Affichage Séances à venir
+  const upcomingContainer = document.getElementById('detail-rdv-a-venir');
+  if (upcomingContainer) {
+    if (upcoming.length === 0) {
+      upcomingContainer.innerHTML = '<p class="text-muted small">Aucune séance programmée.</p>';
+    } else {
+      upcomingContainer.innerHTML = upcoming.map(r => `
+        <div class="card mb-2 border-start border-4 border-primary shadow-sm">
+          <div class="card-body p-2">
+            <div class="d-flex justify-content-between align-items-center">
+              <strong><i class="bi bi-clock me-1"></i>${new Date(r.date_heure).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</strong>
+              <span class="badge ${r.statut_paiement === 'Réglé' ? 'bg-success' : 'bg-warning text-dark'}">${r.statut_paiement || 'En attente'}</span>
+            </div>
+            <div class="small mt-1"><strong>Motif :</strong> ${r.motif || 'Non précisé'}</div>
+            <div class="small"><strong>Montant :</strong> ${r.tarif || 0} € (${r.mode_paiement || 'N/C'})</div>
+          </div>
+        </div>
+      `).join('');
+    }
+  }
+
+  // Affichage Historique des séances passées
+  const historyContainer = document.getElementById('detail-rdv-historique');
+  if (historyContainer) {
+    if (history.length === 0) {
+      historyContainer.innerHTML = '<p class="text-muted small">Aucun historique de séance.</p>';
+    } else {
+      historyContainer.innerHTML = history.map(r => `
+        <div class="card mb-2 border-start border-4 border-success shadow-sm">
+          <div class="card-body p-2">
+            <div class="d-flex justify-content-between align-items-center">
+              <strong><i class="bi bi-calendar-check me-1"></i>${new Date(r.date_heure).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}</strong>
+              <span class="badge ${r.statut_paiement === 'Réglé' ? 'bg-success' : 'bg-danger'}">${r.statut_paiement || 'En attente'}</span>
+            </div>
+            <div class="small mt-1"><strong>Motif :</strong> ${r.motif || 'Non précisé'}</div>
+            <div class="small"><strong>Montant :</strong> ${r.tarif || 0} €</div>
+            ${r.resume ? `<div class="small text-dark mt-1 p-2 bg-light rounded border"><em><strong>Résumé :</strong> ${r.resume}</em></div>` : ''}
+          </div>
+        </div>
+      `).join('');
+    }
+  }
+
+  const modalEl = document.getElementById('patientDetailModal');
+  if (modalEl) {
+    const modal = new bootstrap.Modal(modalEl);
+    modal.show();
+  }
+};
+
 window.openEditPatientModal = function(id) {
   const patient = allPatients.find(p => p.id === id);
   if (!patient) return;
@@ -293,6 +385,9 @@ window.openEditPatientModal = function(id) {
   document.getElementById('edit-telephone').value = patient.telephone || '';
   document.getElementById('edit-email').value = patient.email || '';
   document.getElementById('edit-adresse').value = patient.adresse || '';
+  if (document.getElementById('edit-date-naissance')) {
+    document.getElementById('edit-date-naissance').value = patient.date_naissance || '';
+  }
 
   const modal = new bootstrap.Modal(document.getElementById('editPatientModal'));
   modal.show();
@@ -331,11 +426,10 @@ function renderUpcomingRendezvous(rdvList) {
   if (!tbody) return;
 
   const now = new Date();
-  // Filtre les RDV à partir de maintenant et trie du plus proche au plus lointain
   const upcoming = rdvList
     .filter(rdv => new Date(rdv.date_heure) >= now)
     .sort((a, b) => new Date(a.date_heure) - new Date(b.date_heure))
-    .slice(0, 8); // Affiche les 8 prochains RDV
+    .slice(0, 8);
 
   if (upcoming.length === 0) {
     tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">Aucun rendez-vous à venir</td></tr>';
