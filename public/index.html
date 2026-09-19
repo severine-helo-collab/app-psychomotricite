@@ -47,7 +47,7 @@
   <div id="app-section" class="container-fluid" style="display: none;">
     <div class="row">
       
-      <!-- MENU LATÉRAL -->
+      <!-- MENU LATÉRAL (ONGBETS À GAUCHE RESTÉS À L'IDENTIQUE) -->
       <nav class="col-md-3 col-lg-2 sidebar p-3 text-white">
         <h4 class="fs-5 mb-4 text-center"><i class="bi bi-person-workspace me-2"></i>Mon Cabinet</h4>
         <ul class="nav flex-column">
@@ -68,12 +68,14 @@
         <button id="btn-logout" class="btn btn-outline-light btn-sm w-100"><i class="bi bi-box-arrow-right me-2"></i>Déconnexion</button>
       </nav>
 
-      <!-- CONTENU PRINCIPAL -->
+      <!-- CONTENU PRINCIPAL (PARTIE CENTRALE) -->
       <main class="col-md-9 col-lg-10 p-4">
         
         <!-- SECTION 1 : TABLEAU DE BORD -->
         <div id="section-dashboard">
           <h2 class="mb-4">Tableau de Bord</h2>
+          
+          <!-- CHIFFRES CLÉS -->
           <div class="row g-3 mb-4">
             <div class="col-md-3">
               <div class="card bg-primary text-white p-3 shadow-sm">
@@ -100,6 +102,33 @@
               </div>
             </div>
           </div>
+
+          <!-- TABLEAU DES PROCHAINS RENDEZ-VOUS SUR LA PAGE CENTRALE -->
+          <div class="card shadow-sm p-3 mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <h4 class="m-0 text-primary"><i class="bi bi-calendar2-week me-2"></i>Prochains Rendez-vous</h4>
+              <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addRendezvousModal">
+                <i class="bi bi-calendar-plus me-1"></i> + Nouveau RDV
+              </button>
+            </div>
+            <div class="table-responsive">
+              <table class="table table-hover align-middle">
+                <thead class="table-light">
+                  <tr>
+                    <th>Patient</th>
+                    <th>Date & Heure</th>
+                    <th>Motif</th>
+                    <th>Tarif</th>
+                    <th>Statut Règlement</th>
+                  </tr>
+                </thead>
+                <tbody id="dashboard-upcoming-rdv-body">
+                  <tr><td colspan="5" class="text-center text-muted py-3">Chargement...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
         </div>
 
         <!-- SECTION 2 : PATIENTS -->
@@ -130,10 +159,10 @@
           </div>
         </div>
 
-        <!-- SECTION 3 : RENDEZ-VOUS -->
+        <!-- SECTION 3 : RENDEZ-VOUS (HISTORIQUE ET GESTION COMPLETE) -->
         <div id="section-rendezvous" style="display: none;">
           <div class="d-flex justify-content-between align-items-center mb-3">
-            <h2>Agenda & Rendez-vous</h2>
+            <h2>Tous les Rendez-vous</h2>
             <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addRendezvousModal">
               <i class="bi bi-calendar-plus me-1"></i> Nouveau Rendez-vous
             </button>
