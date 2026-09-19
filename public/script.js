@@ -1,11 +1,11 @@
 // ==========================================
 // 1. CONFIGURATION SUPABASE
 // ==========================================
-// Remplacez ces valeurs par vos identifiants Supabase (Projet -> Settings -> API)
 const SUPABASE_URL = 'https://iyxurkbceiirjdigcyak.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml5eHVya2JjZWlpcmpkaWdjeWFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkwNDYzODQsImV4cCI6MjEwNDYyMjM4NH0.MGBADlkxP307mbUvU_07OEhN5sfqv9_wSTqIP5AVK-s';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml5eHVya2JjZWlpcmpkaWdjeWFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkwNDYzODQsImV4cCI6MjEwNDYyMjM4NH0.MGBADlkxP307mbUvU_07OEhN5sfqv9_wSTqIP5AVK-sE';
 
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// Changement du nom de la variable pour éviter le conflit avec le CDN
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // Variables globales d'état
 let currentUser = null;
@@ -48,11 +48,11 @@ function initEventListeners() {
     const password = document.getElementById('auth-password').value;
 
     if (isSignUpMode) {
-      const { data, error } = await supabase.auth.signUp({ email, password });
+      const { data, error } = await supabaseClient.auth.signUp({ email, password });
       if (error) alert("Erreur d'inscription : " + error.message);
       else alert("Compte créé avec succès ! Vous pouvez vous connecter.");
     } else {
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
       if (error) alert("Erreur de connexion : " + error.message);
       else checkSession();
     }
@@ -60,7 +60,7 @@ function initEventListeners() {
 
   // Déconnexion
   document.getElementById('btn-logout').addEventListener('click', async () => {
-    await supabase.auth.signOut();
+    await supabaseClient.auth.signOut();
     checkSession();
   });
 
@@ -94,7 +94,7 @@ function initEventListeners() {
 // 3. GESTION DE LA SESSION & NAVIGATION
 // ==========================================
 async function checkSession() {
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { session } } = await supabaseClient.auth.getSession();
   if (session) {
     currentUser = session.user;
     document.getElementById('auth-section').style.display = 'none';
@@ -133,7 +133,7 @@ async function loadAllData() {
 }
 
 async function fetchPatients() {
-  const { data, error } = await supabase
+  const { data, error } = await supabaseClient
     .from('patients')
     .select('*')
     .order('nom', { ascending: true });
@@ -146,7 +146,7 @@ async function fetchPatients() {
 }
 
 async function fetchRendezvous() {
-  const { data, error } = await supabase
+  const { data, error } = await supabaseClient
     .from('rendezvous')
     .select('*, patients(nom, prenom)')
     .order('date_heure', { ascending: false });
@@ -196,7 +196,7 @@ async function handleAddPatient(e) {
     adresse: document.getElementById('adresse').value || null
   };
 
-  const { error } = await supabase.from('patients').insert([newPatient]);
+  const { error } = await supabaseClient.from('patients').insert([newPatient]);
   if (error) alert("Erreur lors de l'ajout : " + error.message);
   else {
     bootstrap.Modal.getInstance(document.getElementById('addPatientModal')).hide();
@@ -232,7 +232,7 @@ async function handleEditPatient(e) {
     adresse: document.getElementById('edit-adresse').value || null
   };
 
-  const { error } = await supabase.from('patients').update(updatedPatient).eq('id', id);
+  const { error } = await supabaseClient.from('patients').update(updatedPatient).eq('id', id);
   if (error) alert("Erreur de modification : " + error.message);
   else {
     bootstrap.Modal.getInstance(document.getElementById('editPatientModal')).hide();
@@ -242,7 +242,7 @@ async function handleEditPatient(e) {
 
 async function deletePatient(id) {
   if (confirm("Êtes-vous sûr de vouloir supprimer ce patient ? Tous ses RDV seront également supprimés.")) {
-    const { error } = await supabase.from('patients').delete().eq('id', id);
+    const { error } = await supabaseClient.from('patients').delete().eq('id', id);
     if (error) alert("Erreur lors de la suppression : " + error.message);
     else await loadAllData();
   }
@@ -375,7 +375,7 @@ async function handleAddRendezvous(e) {
     resume: document.getElementById('rdv-resume').value || null
   };
 
-  const { error } = await supabase.from('rendezvous').insert([newRdv]);
+  const { error } = await supabaseClient.from('rendezvous').insert([newRdv]);
   if (error) alert("Erreur lors de l'ajout du RDV : " + error.message);
   else {
     bootstrap.Modal.getInstance(document.getElementById('addRendezvousModal')).hide();
@@ -386,14 +386,14 @@ async function handleAddRendezvous(e) {
 
 async function togglePaymentStatus(rdvId, currentStatus) {
   const newStatus = currentStatus === 'Réglé' ? 'En attente' : 'Réglé';
-  const { error } = await supabase.from('rendezvous').update({ statut_paiement: newStatus }).eq('id', rdvId);
+  const { error } = await supabaseClient.from('rendezvous').update({ statut_paiement: newStatus }).eq('id', rdvId);
   if (error) alert("Erreur lors du changement de statut : " + error.message);
   else await loadAllData();
 }
 
 async function deleteRendezvous(id) {
   if (confirm("Supprimer ce rendez-vous ?")) {
-    const { error } = await supabase.from('rendezvous').delete().eq('id', id);
+    const { error } = await supabaseClient.from('rendezvous').delete().eq('id', id);
     if (error) alert("Erreur de suppression : " + error.message);
     else await loadAllData();
   }
