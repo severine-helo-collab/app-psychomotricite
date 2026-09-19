@@ -134,7 +134,7 @@ function hideApplication() {
 }
 
 // ==========================================
-// 4. NAVIGATION INTERNE (SIDEBAR / ONGLETS)
+// 4. NAVIGATION INTERNE & CARTES DU DASHBOARD
 // ==========================================
 function setupNavigation() {
   const navDashboard = document.getElementById('nav-dashboard');
@@ -161,6 +161,28 @@ function setupNavigation() {
   if (navPatients) navPatients.addEventListener('click', (e) => { e.preventDefault(); switchSection(navPatients, sections.patients); });
   if (navRendezvous) navRendezvous.addEventListener('click', (e) => { e.preventDefault(); switchSection(navRendezvous, sections.rendezvous); });
   if (navFinance) navFinance.addEventListener('click', (e) => { e.preventDefault(); switchSection(navFinance, sections.finance); });
+
+  // CLIKS SUR LES CARTES DE STATISTIQUES DU TABLEAU DE BORD
+  const cardStatPatients = document.getElementById('card-stat-patients');
+  if (cardStatPatients) {
+    cardStatPatients.addEventListener('click', () => {
+      switchSection(navPatients, sections.patients);
+    });
+  }
+
+  const cardStatRdv = document.getElementById('card-stat-rdv');
+  if (cardStatRdv) {
+    cardStatRdv.addEventListener('click', () => {
+      switchSection(navRendezvous, sections.rendezvous);
+    });
+  }
+
+  const cardStatFinance = document.getElementById('card-stat-finance');
+  if (cardStatFinance) {
+    cardStatFinance.addEventListener('click', () => {
+      switchSection(navFinance, sections.finance);
+    });
+  }
 }
 
 // ==========================================
@@ -256,13 +278,25 @@ function setupForms() {
 }
 
 // ==========================================
-// 6. GESTION PATIENTS
+// 6. GESTION PATIENTS (TRI ALPHABÉTIQUE A-Z)
 // ==========================================
 async function loadPatients() {
   if (!supabaseClient) return;
-  const { data, error } = await supabaseClient.from('patients').select('*').order('nom');
+  const { data, error } = await supabaseClient.from('patients').select('*');
   if (error) return console.error(error);
-  allPatients = data || [];
+  
+  // Tri strict par ordre alphabétique du Nom, puis du Prénom
+  allPatients = (data || []).sort((a, b) => {
+    const nomA = (a.nom || '').toLowerCase();
+    const nomB = (b.nom || '').toLowerCase();
+    if (nomA !== nomB) {
+      return nomA.localeCompare(nomB, 'fr', { sensitivity: 'base' });
+    }
+    const prenomA = (a.prenom || '').toLowerCase();
+    const prenomB = (b.prenom || '').toLowerCase();
+    return prenomA.localeCompare(prenomB, 'fr', { sensitivity: 'base' });
+  });
+
   renderPatients(allPatients);
   updatePatientSelectOptions(allPatients);
   updateDashboard();
@@ -272,6 +306,11 @@ function renderPatients(patients) {
   const tbody = document.getElementById('patients-table-body');
   if (!tbody) return;
   tbody.innerHTML = '';
+
+  if (patients.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">Aucun patient enregistré</td></tr>';
+    return;
+  }
 
   patients.forEach(patient => {
     const tr = document.createElement('tr');
@@ -305,7 +344,6 @@ window.viewPatientDetails = function(patientId) {
   const patient = allPatients.find(p => p.id === patientId);
   if (!patient) return;
 
-  // Infos patient
   const elemNom = document.getElementById('detail-patient-nom');
   const elemDob = document.getElementById('detail-patient-dob');
   const elemAge = document.getElementById('detail-patient-age');
@@ -318,14 +356,12 @@ window.viewPatientDetails = function(patientId) {
   if (elemTel) elemTel.innerText = patient.telephone || '-';
   if (elemEmail) elemEmail.innerText = patient.email || '-';
 
-  // Séances du patient
   const patientRdvs = allRendezvous.filter(r => r.patient_id === patientId);
   const now = new Date();
 
   const upcoming = patientRdvs.filter(r => new Date(r.date_heure) >= now).sort((a,b) => new Date(a.date_heure) - new Date(b.date_heure));
   const history = patientRdvs.filter(r => new Date(r.date_heure) < now).sort((a,b) => new Date(b.date_heure) - new Date(a.date_heure));
 
-  // Affichage Séances à venir
   const upcomingContainer = document.getElementById('detail-rdv-a-venir');
   if (upcomingContainer) {
     if (upcoming.length === 0) {
@@ -346,7 +382,6 @@ window.viewPatientDetails = function(patientId) {
     }
   }
 
-  // Affichage Historique des séances passées
   const historyContainer = document.getElementById('detail-rdv-historique');
   if (historyContainer) {
     if (history.length === 0) {
@@ -420,7 +455,6 @@ async function loadRendezvous() {
   updateDashboardStats(allRendezvous);
 }
 
-// AFFICHE LES PROCHAINS RDV DANS LE TABLEAU DE BORD (PAGE CENTRALE)
 function renderUpcomingRendezvous(rdvList) {
   const tbody = document.getElementById('dashboard-upcoming-rdv-body');
   if (!tbody) return;
