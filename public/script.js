@@ -8,7 +8,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
   } else {
     console.error("Supabase non chargé");
-    return;
+    return; 
   }
 
   const { data: { session } } = await supabaseClient.auth.getSession();
