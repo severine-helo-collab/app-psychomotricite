@@ -83,6 +83,7 @@
             <form id="patient-form" style="display: flex; flex-direction: column; gap: 10px;">
               <input type="text" id="patient-nom" placeholder="Nom" required>
               <input type="text" id="patient-prenom" placeholder="Prénom" required>
+              <input type="tel" id="patient-tel" placeholder="Téléphone (ex: 06 12 34 56 78)">
               <label style="font-size: 0.8em; color: #666; margin-bottom: -5px;">Date de naissance :</label>
               <input type="date" id="patient-dob">
               <button type="submit" class="btn-primary">+ Créer la fiche</button>
@@ -105,9 +106,21 @@
             <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 15px;">
               <div>
                 <h2 id="detail-patient-nom" style="margin: 0; color: #2c3e50;">-</h2>
-                <span id="detail-patient-dob" style="font-size: 0.85em; color: #7f8c8d;">-</span>
+                <div id="detail-patient-info" style="font-size: 0.85em; color: #7f8c8d; margin-top: 5px; display: flex; flex-direction: column; gap: 3px;"></div>
               </div>
               <button id="btn-delete-patient" class="btn-danger" style="font-size: 0.8em;">Supprimer la fiche</button>
+            </div>
+
+            <!-- Bloc Prochain Rendez-vous -->
+            <div style="background: #eef7fe; padding: 12px; border-radius: 6px; border: 1px solid #3498db; margin-bottom: 20px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <strong style="color: #2980b9;">📅 Prochain Rendez-vous</strong>
+                <span id="display-prochain-rdv" style="font-weight: bold; color: #2c3e50;">Aucun RDV prévu</span>
+              </div>
+              <form id="rdv-form" style="display: flex; gap: 8px;">
+                <input type="datetime-local" id="input-prochain-rdv" style="flex: 1;">
+                <button type="submit" class="btn-primary" style="background: #3498db; padding: 6px 12px;">Enregistrer RDV</button>
+              </form>
             </div>
 
             <!-- Formulaire Ajouter Séance pour CE Patient -->
