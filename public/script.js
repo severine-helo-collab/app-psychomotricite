@@ -162,7 +162,7 @@ function setupNavigation() {
   if (navRendezvous) navRendezvous.addEventListener('click', (e) => { e.preventDefault(); switchSection(navRendezvous, sections.rendezvous); });
   if (navFinance) navFinance.addEventListener('click', (e) => { e.preventDefault(); switchSection(navFinance, sections.finance); });
 
-  // CLIKS SUR LES CARTES DE STATISTIQUES DU TABLEAU DE BORD
+  // Clics sur les cartes statistiques du Tableau de Bord
   const cardStatPatients = document.getElementById('card-stat-patients');
   if (cardStatPatients) {
     cardStatPatients.addEventListener('click', () => {
@@ -285,7 +285,7 @@ async function loadPatients() {
   const { data, error } = await supabaseClient.from('patients').select('*');
   if (error) return console.error(error);
   
-  // Tri strict par ordre alphabétique du Nom, puis du Prénom
+  // Tri alphabétique A-Z (Nom puis Prénom)
   allPatients = (data || []).sort((a, b) => {
     const nomA = (a.nom || '').toLowerCase();
     const nomB = (b.nom || '').toLowerCase();
@@ -339,11 +339,14 @@ function updatePatientSelectOptions(patients) {
   });
 }
 
-// AFFICHAGE DE LA FICHE DETAIL PATIENT (MODAL)
+// ==========================================
+// 7. FICHE DÉTAILLÉE PATIENT (ŒIL) + FINANCES
+// ==========================================
 window.viewPatientDetails = function(patientId) {
   const patient = allPatients.find(p => p.id === patientId);
   if (!patient) return;
 
+  // 1. Informations personnelles
   const elemNom = document.getElementById('detail-patient-nom');
   const elemDob = document.getElementById('detail-patient-dob');
   const elemAge = document.getElementById('detail-patient-age');
@@ -356,12 +359,39 @@ window.viewPatientDetails = function(patientId) {
   if (elemTel) elemTel.innerText = patient.telephone || '-';
   if (elemEmail) elemEmail.innerText = patient.email || '-';
 
+  // 2. Séances & Calculs Financiers pour ce patient
   const patientRdvs = allRendezvous.filter(r => r.patient_id === patientId);
   const now = new Date();
 
-  const upcoming = patientRdvs.filter(r => new Date(r.date_heure) >= now).sort((a,b) => new Date(a.date_heure) - new Date(b.date_heure));
-  const history = patientRdvs.filter(r => new Date(r.date_heure) < now).sort((a,b) => new Date(b.date_heure) - new Date(a.date_heure));
+  const totalGenere = patientRdvs.reduce((sum, r) => sum + (parseFloat(r.tarif) || 0), 0);
+  const totalPaye = patientRdvs
+    .filter(r => r.statut_paiement === 'Réglé')
+    .reduce((sum, r) => sum + (parseFloat(r.tarif) || 0), 0);
+  const totalEnAttente = patientRdvs
+    .filter(r => r.statut_paiement !== 'Réglé')
+    .reduce((sum, r) => sum + (parseFloat(r.tarif) || 0), 0);
 
+  // Injection des données financières
+  const elemNbSeances = document.getElementById('detail-fin-nb-seances');
+  const elemTotalGenere = document.getElementById('detail-fin-total-genere');
+  const elemTotalPaye = document.getElementById('detail-fin-total-paye');
+  const elemTotalAttente = document.getElementById('detail-fin-total-attente');
+
+  if (elemNbSeances) elemNbSeances.innerText = patientRdvs.length;
+  if (elemTotalGenere) elemTotalGenere.innerText = totalGenere.toFixed(2) + ' €';
+  if (elemTotalPaye) elemTotalPaye.innerText = totalPaye.toFixed(2) + ' €';
+  if (elemTotalAttente) elemTotalAttente.innerText = totalEnAttente.toFixed(2) + ' €';
+
+  // 3. Tri des séances : À venir vs Passées
+  const upcoming = patientRdvs
+    .filter(r => new Date(r.date_heure) >= now)
+    .sort((a,b) => new Date(a.date_heure) - new Date(b.date_heure));
+
+  const history = patientRdvs
+    .filter(r => new Date(r.date_heure) < now)
+    .sort((a,b) => new Date(b.date_heure) - new Date(a.date_heure));
+
+  // Affichage des séances à venir
   const upcomingContainer = document.getElementById('detail-rdv-a-venir');
   if (upcomingContainer) {
     if (upcoming.length === 0) {
@@ -375,13 +405,14 @@ window.viewPatientDetails = function(patientId) {
               <span class="badge ${r.statut_paiement === 'Réglé' ? 'bg-success' : 'bg-warning text-dark'}">${r.statut_paiement || 'En attente'}</span>
             </div>
             <div class="small mt-1"><strong>Motif :</strong> ${r.motif || 'Non précisé'}</div>
-            <div class="small"><strong>Montant :</strong> ${r.tarif || 0} € (${r.mode_paiement || 'N/C'})</div>
+            <div class="small"><strong>Tarif :</strong> ${r.tarif || 0} € (${r.mode_paiement || 'N/C'})</div>
           </div>
         </div>
       `).join('');
     }
   }
 
+  // Affichage du suivi des séances passées
   const historyContainer = document.getElementById('detail-rdv-historique');
   if (historyContainer) {
     if (history.length === 0) {
@@ -391,11 +422,11 @@ window.viewPatientDetails = function(patientId) {
         <div class="card mb-2 border-start border-4 border-success shadow-sm">
           <div class="card-body p-2">
             <div class="d-flex justify-content-between align-items-center">
-              <strong><i class="bi bi-calendar-check me-1"></i>${new Date(r.date_heure).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}</strong>
+              <strong><i class="bi bi-calendar-check me-1"></i>${new Date(r.date_heure).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</strong>
               <span class="badge ${r.statut_paiement === 'Réglé' ? 'bg-success' : 'bg-danger'}">${r.statut_paiement || 'En attente'}</span>
             </div>
             <div class="small mt-1"><strong>Motif :</strong> ${r.motif || 'Non précisé'}</div>
-            <div class="small"><strong>Montant :</strong> ${r.tarif || 0} €</div>
+            <div class="small"><strong>Montant :</strong> ${r.tarif || 0} € — <em>${r.mode_paiement || 'Mode non renseigné'}</em></div>
             ${r.resume ? `<div class="small text-dark mt-1 p-2 bg-light rounded border"><em><strong>Résumé :</strong> ${r.resume}</em></div>` : ''}
           </div>
         </div>
@@ -403,6 +434,7 @@ window.viewPatientDetails = function(patientId) {
     }
   }
 
+  // Ouverture de la fenêtre Modal Bootstrap
   const modalEl = document.getElementById('patientDetailModal');
   if (modalEl) {
     const modal = new bootstrap.Modal(modalEl);
@@ -437,7 +469,7 @@ window.deletePatient = async function(id) {
 };
 
 // ==========================================
-// 7. GESTION RENDEZ-VOUS & FINANCES
+// 8. GESTION RENDEZ-VOUS & FINANCES
 // ==========================================
 async function loadRendezvous() {
   if (!supabaseClient) return;
@@ -546,7 +578,7 @@ window.deleteRendezvous = async function(id) {
 };
 
 // ==========================================
-// 8. DASHBOARD & STATS
+// 9. DASHBOARD STATS
 // ==========================================
 function updateDashboard() {
   const el = document.getElementById('stat-patients-count');
