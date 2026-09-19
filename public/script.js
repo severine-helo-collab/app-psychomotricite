@@ -1,5 +1,5 @@
 const SUPABASE_URL = "https://iyxurkbceiirjdigcyak.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml5eHVya2JjZWlpcmpkaWdjeWFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkwNDYzODQsImV4cCI6MjEwNDYyMjM4NH0.MGBADlkxP307mbUvU_07OEhN5sfqv9_wSTqIP5AVK-s";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml5eHVya2JjZWlpcmpkaWdjeWFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkwNDYzODQsImV4cCI6MjEwNDYyMjM4NH0.MGBADlkxP307mbUvU_07OEhN5sfqv9_wSTqIP5AVK-s"; // Remplace si nécessaire par ta clé complète
 
 let supabaseClient;
 let currentSelectedPatientId = null;
@@ -159,7 +159,7 @@ function showLoginScreen() {
   }
 }
 
-// Chargement Patients & Alimentation du Select
+// Chargement Patients avec bouton de suppression
 async function loadPatients() {
   const list = document.getElementById('patient-list');
   const select = document.getElementById('seance-patient');
@@ -190,9 +190,14 @@ async function loadPatients() {
   }
 
   list.innerHTML = patients.map(p => `
-    <div onclick="selectPatientForSeances('${p.id}')" style="border: 1px solid #eee; padding: 10px; margin-bottom: 8px; border-radius: 5px; background: #fafafa; cursor: pointer; transition: 0.2s;">
-      <strong>👤 ${p.nom || ''} ${p.prenom || ''}</strong>
-      <div style="font-size: 0.85em; color: #666;">📅 Née(e) le : ${p.date_naissance || 'Non renseignée'}</div>
+    <div style="border: 1px solid #eee; padding: 10px; margin-bottom: 8px; border-radius: 5px; background: #fafafa; display: flex; justify-content: space-between; align-items: center;">
+      <div onclick="selectPatientForSeances('${p.id}')" style="cursor: pointer; flex: 1;">
+        <strong>👤 ${p.nom || ''} ${p.prenom || ''}</strong>
+        <div style="font-size: 0.85em; color: #666;">📅 Né(e) le : ${p.date_naissance || 'Non renseignée'}</div>
+      </div>
+      <button onclick="deletePatient('${p.id}', '${p.nom || ''} ${p.prenom || ''}')" title="Supprimer ce patient" style="background: #e74c3c; color: white; border: none; padding: 5px 8px; border-radius: 4px; cursor: pointer; font-size: 0.8em; margin-left: 10px;">
+        🗑️
+      </button>
     </div>
   `).join('');
 }
@@ -328,6 +333,30 @@ async function updateFinancialSummary() {
   if (statBenefice) {
     statBenefice.textContent = benefice.toFixed(2) + " €";
     statBenefice.style.color = benefice >= 0 ? '#27ae60' : '#c0392b';
+  }
+}
+
+// Fonction de suppression de patient
+async function deletePatient(patientId, nomComplet) {
+  const confirmation = confirm(`Êtes-vous sûr(e) de vouloir supprimer le patient ${nomComplet} ?\nAttention : toutes ses séances associées seront également supprimées.`);
+  
+  if (!confirmation) return;
+
+  const { error } = await supabaseClient
+    .from('patients')
+    .delete()
+    .eq('id', patientId);
+
+  if (error) {
+    alert("Erreur lors de la suppression : " + error.message);
+  } else {
+    if (currentSelectedPatientId === patientId) {
+      currentSelectedPatientId = null;
+      document.getElementById('seance-patient').value = "";
+      document.getElementById('seance-list').innerHTML = "<p>Sélectionnez un patient pour voir ses séances.</p>";
+    }
+    await loadPatients();
+    await updateFinancialSummary();
   }
 }
 
