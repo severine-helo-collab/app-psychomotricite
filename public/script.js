@@ -2,7 +2,7 @@
 // 1. CONFIGURATION SUPABASE
 // ==========================================
 const SUPABASE_URL = 'https://iyxurkbceiirjdigcyak.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml5eHVya2JjZWlpcmpkaWdjeWFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkwNDYzODQsImV4cCI6MjEwNDYyMjM4NH0.MGBADlkxP307mbUvU_07OEhN5sfqv9_wSTqIP5AVK-s';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml5eHVya2JjZWlpcmpkaWdjeWFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkwNDYzODQsImV4cCI6MjEwNDYyMjM4NH0.MGBADlkxP307mbUvU_07OEhN5sfqv9_wSTqIP5AVK-s'';
 
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -19,6 +19,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupNavigation();
   setupForms();
 
+  // Vérifie si l'utilisateur est déjà connecté
   const { data: { session } } = await supabaseClient.auth.getSession();
   if (session) {
     showApplication();
@@ -61,14 +62,17 @@ function setupAuth() {
 
       if (isLoginMode) {
         const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
-        if (error) alert('Erreur de connexion : ' + error.message);
-        else showApplication();
+        if (error) {
+          alert('Erreur de connexion : ' + error.message);
+        } else {
+          showApplication();
+        }
       } else {
         const { error } = await supabaseClient.auth.signUp({ email, password });
         if (error) {
           alert("Erreur d'inscription : " + error.message);
         } else {
-          alert("Inscription réussie ! Vous pouvez maintenant vous connecter.");
+          alert("Inscription réussie ! Vous pouvez vous connecter.");
           isLoginMode = true;
           authSubtitle.innerText = 'Connectez-vous à votre espace';
           btnAuthSubmit.innerText = 'Se connecter';
@@ -104,7 +108,7 @@ function hideApplication() {
 }
 
 // ==========================================
-// 4. NAVIGATION INTERNE
+// 4. NAVIGATION INTERNE (SIDEBAR)
 // ==========================================
 function setupNavigation() {
   const navDashboard = document.getElementById('nav-dashboard');
@@ -134,10 +138,10 @@ function setupNavigation() {
 }
 
 // ==========================================
-// 5. GESTION DES FORMULAIRES
+// 5. FORMULAIRES
 // ==========================================
 function setupForms() {
-  // Patient
+  // Ajouter patient
   const addPatientForm = document.getElementById('add-patient-form');
   if (addPatientForm) {
     addPatientForm.addEventListener('submit', async (e) => {
@@ -160,7 +164,30 @@ function setupForms() {
     });
   }
 
-  // Rendez-vous + Financement
+  // Modifier patient
+  const editPatientForm = document.getElementById('edit-patient-form');
+  if (editPatientForm) {
+    editPatientForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const id = document.getElementById('edit-patient-id').value;
+      const patientData = {
+        nom: document.getElementById('edit-nom').value,
+        prenom: document.getElementById('edit-prenom').value,
+        telephone: document.getElementById('edit-telephone').value,
+        email: document.getElementById('edit-email').value,
+        adresse: document.getElementById('edit-adresse').value
+      };
+
+      const { error } = await supabaseClient.from('patients').update(patientData).eq('id', id);
+      if (error) alert("Erreur : " + error.message);
+      else {
+        bootstrap.Modal.getInstance(document.getElementById('editPatientModal')).hide();
+        loadPatients();
+      }
+    });
+  }
+
+  // Ajouter RDV
   const addRdvForm = document.getElementById('add-rdv-form');
   if (addRdvForm) {
     addRdvForm.addEventListener('submit', async (e) => {
@@ -185,7 +212,7 @@ function setupForms() {
     });
   }
 
-  // Recherche
+  // Recherche patient
   const searchInput = document.getElementById('searchPatient');
   if (searchInput) {
     searchInput.addEventListener('input', (e) => {
@@ -200,7 +227,7 @@ function setupForms() {
 }
 
 // ==========================================
-// 6. PATIENTS
+// 6. GESTION PATIENTS
 // ==========================================
 async function loadPatients() {
   const { data, error } = await supabaseClient.from('patients').select('*').order('nom');
@@ -242,8 +269,31 @@ function updatePatientSelectOptions(patients) {
   });
 }
 
+window.openEditPatientModal = function(id) {
+  const patient = allPatients.find(p => p.id === id);
+  if (!patient) return;
+
+  document.getElementById('edit-patient-id').value = patient.id;
+  document.getElementById('edit-nom').value = patient.nom || '';
+  document.getElementById('edit-prenom').value = patient.prenom || '';
+  document.getElementById('edit-telephone').value = patient.telephone || '';
+  document.getElementById('edit-email').value = patient.email || '';
+  document.getElementById('edit-adresse').value = patient.adresse || '';
+
+  const modal = new bootstrap.Modal(document.getElementById('editPatientModal'));
+  modal.show();
+};
+
+window.deletePatient = async function(id) {
+  if (confirm('Supprimer ce patient ?')) {
+    const { error } = await supabaseClient.from('patients').delete().eq('id', id);
+    if (error) alert('Erreur : ' + error.message);
+    else loadPatients();
+  }
+};
+
 // ==========================================
-// 7. RENDEZ-VOUS & FINANCES
+// 7. GESTION RENDEZ-VOUS & FINANCES
 // ==========================================
 async function loadRendezvous() {
   const { data, error } = await supabaseClient
@@ -308,7 +358,7 @@ function renderFinance(rdvList) {
 }
 
 window.deleteRendezvous = async function(id) {
-  if (confirm('Voulez-vous supprimer ce rendez-vous ?')) {
+  if (confirm('Supprimer ce rendez-vous ?')) {
     const { error } = await supabaseClient.from('rendezvous').delete().eq('id', id);
     if (error) alert('Erreur : ' + error.message);
     else loadRendezvous();
@@ -316,7 +366,7 @@ window.deleteRendezvous = async function(id) {
 };
 
 // ==========================================
-// 8. TABLEAU DE BORD ET STATISTIQUES FINANCIÈRES
+// 8. DASHBOARD & STATS
 // ==========================================
 function updateDashboard() {
   const el = document.getElementById('stat-patients-count');
@@ -332,12 +382,10 @@ function updateDashboardStats(rdvData) {
   const currentYear = now.getFullYear();
   const todayStr = now.toISOString().split('T')[0];
 
-  // RDV aujourd'hui
   const rdvToday = rdvData.filter(rdv => rdv.date_heure && rdv.date_heure.startsWith(todayStr));
   const elToday = document.getElementById('stat-rdv-today-count');
   if (elToday) elToday.innerText = rdvToday.length;
 
-  // Calcul du Chiffre d'Affaires du mois
   const caMois = rdvData
     .filter(rdv => {
       const d = new Date(rdv.date_heure);
