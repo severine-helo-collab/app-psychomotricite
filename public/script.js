@@ -1,5 +1,5 @@
 const SUPABASE_URL = "https://iyxurkbceiirjdigcyak.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml5eHVya2JjZWlpcmpkaWdjeWFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkwNDYzODQsImV4cCI6MjEwNDYyMjM4NH0.MGBADlkxP307mbUvU_07OEhN5sfqv9_wSTqIP5AVK-s; // Remplace par ta vraie clé anon Supabase
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml5eHVya2JjZWlpcmpkaWdjeWFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkwNDYzODQsImV4cCI6MjEwNDYyMjM4NH0.MGBADlkxP307mbUvU_07OEhN5sfqv9_wSTqIP5AVK-s"; // Remplace par ta vraie clé anon Supabase
 
 let supabaseClient;
 let currentPatient = null;
@@ -50,7 +50,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  // FIX 1 : Enregistrement du Prochain RDV
+  // Enregistrement du Prochain RDV
   document.getElementById('rdv-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (!currentPatient) return;
@@ -73,7 +73,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  // FIX 2 : Enregistrement d'une séance avec résumé
+  // Enregistrement d'une séance avec résumé / notes
   document.getElementById('seance-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (!currentPatient) return;
@@ -106,7 +106,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  // Ajout Charge
+  // Ajout Charge Comptabilité
   document.getElementById('compta-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const titre = document.getElementById('compta-titre').value.trim();
