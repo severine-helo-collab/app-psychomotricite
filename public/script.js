@@ -1,5 +1,5 @@
 const SUPABASE_URL = "https://iyxurkbceiirjdigcyak.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml5eHVya2JjZWlpcmpkaWdjeWFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkwNDYzODQsImV4cCI6MjEwNDYyMjM4NH0.MGBADlkxP307mbUvU_07OEhN5sfqv9_wSTqIP5AVK-s"; // ⚠️ Remplace par ta vraie clé anon Supabase
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml5eHVya2JjZWlpcmpkaWdjeWFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkwNDYzODQsImV4cCI6MjEwNDYyMjM4NH0.MGBADlkxP307mbUvU_07OEhN5sfqv9_wSTqIP5AVK-s"; // Remplace par ta vraie clé anon Supabase
 
 let supabaseClient;
 let currentPatient = null;
@@ -34,11 +34,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     e.preventDefault();
     const nom = document.getElementById('patient-nom').value.trim();
     const prenom = document.getElementById('patient-prenom').value.trim();
+    const telephone = document.getElementById('patient-tel').value.trim();
     const rawDate = document.getElementById('patient-dob').value;
     
     const { data, error } = await supabaseClient
       .from('patients')
-      .insert([{ nom, prenom, date_naissance: rawDate !== '' ? rawDate : null }])
+      .insert([{ nom, prenom, telephone, date_naissance: rawDate !== '' ? rawDate : null }])
       .select();
 
     if (error) alert("Erreur : " + error.message);
@@ -49,7 +50,28 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  // Création Séance pour le patient actif
+  // Mise à jour Prochain RDV
+  document.getElementById('rdv-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!currentPatient) return;
+
+    const rdvValue = document.getElementById('input-prochain-rdv').value;
+    const nextRdv = rdvValue ? new Date(rdvValue).toISOString() : null;
+
+    const { error } = await supabaseClient
+      .from('patients')
+      .update({ prochain_rdv: nextRdv })
+      .eq('id', currentPatient.id);
+
+    if (error) alert("Erreur RDV : " + error.message);
+    else {
+      currentPatient.prochain_rdv = nextRdv;
+      updateRdvDisplay();
+      await loadPatients();
+    }
+  });
+
+  // Création Séance
   document.getElementById('seance-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (!currentPatient) return;
@@ -101,7 +123,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  // Bouton suppression patient
+  // Suppression Patient
   document.getElementById('btn-delete-patient')?.addEventListener('click', async () => {
     if (!currentPatient) return;
     const confirmation = confirm(`Supprimer définitivement la fiche de ${currentPatient.nom} ${currentPatient.prenom} et tout son historique ?`);
@@ -154,35 +176,66 @@ async function loadPatients() {
     return;
   }
 
-  list.innerHTML = patients.map(p => `
-    <div class="patient-item ${currentPatient && currentPatient.id === p.id ? 'active' : ''}" onclick='openPatientCard(${JSON.stringify(p)})'>
-      <div>
-        <strong>👤 ${p.nom} ${p.prenom}</strong>
-        <div style="font-size: 0.8em; color: #7f8c8d;">Né(e) le : ${p.date_naissance ? new Date(p.date_naissance).toLocaleDateString('fr-FR') : 'NC'}</div>
+  list.innerHTML = patients.map(p => {
+    let rdvTxt = '';
+    if (p.prochain_rdv) {
+      const d = new Date(p.prochain_rdv);
+      rdvTxt = `<div style="font-size:0.75em; color:#2980b9; margin-top: 2px;">📅 RDV : ${d.toLocaleDateString('fr-FR')} ${d.toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'})}</div>`;
+    }
+
+    return `
+      <div class="patient-item ${currentPatient && currentPatient.id === p.id ? 'active' : ''}" onclick='openPatientCard(${JSON.stringify(p)})'>
+        <div>
+          <strong>👤 ${p.nom} ${p.prenom}</strong>
+          ${p.telephone ? `<div style="font-size:0.8em; color:#555;">📞 ${p.telephone}</div>` : ''}
+          ${rdvTxt}
+        </div>
+        <span>➡️</span>
       </div>
-      <span>➡️</span>
-    </div>
-  `).join('');
+    `;
+  }).join('');
 }
 
-// Ouvrir la fiche d'un patient
+// Ouvrir la fiche patient
 function openPatientCard(patient) {
   currentPatient = patient;
-  
-  // Met à jour la sélection visuelle dans la liste
   loadPatients();
 
   document.getElementById('empty-state').classList.add('hidden');
   document.getElementById('patient-detail-card').classList.remove('hidden');
 
   document.getElementById('detail-patient-nom').textContent = `👤 ${patient.nom} ${patient.prenom}`;
-  document.getElementById('detail-patient-dob').textContent = `Date de naissance : ${patient.date_naissance ? new Date(patient.date_naissance).toLocaleDateString('fr-FR') : 'Non renseignée'}`;
+  
+  const dobText = patient.date_naissance ? new Date(patient.date_naissance).toLocaleDateString('fr-FR') : 'Non renseignée';
+  const telText = patient.telephone ? `<a href="tel:${patient.telephone}" style="color: #2980b9; text-decoration: none;">📞 ${patient.telephone}</a>` : '📞 Non renseigné';
+  
+  document.getElementById('detail-patient-info').innerHTML = `
+    <span>🎂 Date de naissance : ${dobText}</span>
+    <span>${telText}</span>
+  `;
 
-  // Pré-remplit automatiquement le motif suggéré "Séance X"
+  updateRdvDisplay();
   loadSeancesForCurrentPatient();
 }
 
-// Charger les séances du patient sélectionné
+function updateRdvDisplay() {
+  const display = document.getElementById('display-prochain-rdv');
+  const input = document.getElementById('input-prochain-rdv');
+
+  if (currentPatient && currentPatient.prochain_rdv) {
+    const d = new Date(currentPatient.prochain_rdv);
+    display.textContent = `${d.toLocaleDateString('fr-FR')} à ${d.toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'})}`;
+    
+    // Ajuster le champ datetime-local
+    const localIso = new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
+    input.value = localIso;
+  } else {
+    display.textContent = "Aucun RDV prévu";
+    input.value = "";
+  }
+}
+
+// Charger les séances
 async function loadSeancesForCurrentPatient() {
   if (!currentPatient) return;
   const list = document.getElementById('seance-list');
@@ -199,7 +252,6 @@ async function loadSeancesForCurrentPatient() {
     return;
   }
 
-  // Suggestion automatique du titre (ex: Séance 3 s'il y a déjà 2 séances)
   const count = seances ? seances.length + 1 : 1;
   document.getElementById('seance-titre').value = `Séance ${count}`;
 
