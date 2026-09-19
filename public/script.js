@@ -1,14 +1,15 @@
 const SUPABASE_URL = "https://iyxurkbceiirjdigcyak.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml5eHVya2JjZWlpcmpkaWdjeWFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkwNDYzODQsImV4cCI6MjEwNDYyMjM4NH0.MGBADlkxP307mbUvU_07OEhN5sfqv9_wSTqIP5AVK-s"; 
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml5eHVya2JjZWlpcmpkaWdjeWFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkwNDYzODQsImV4cCI6MjEwNDYyMjM4NH0.MGBADlkxP307mbUvU_07OEhN5sfqv9_wSTqIP5AVK-s";
 
 let supabaseClient;
+let currentSelectedPatientId = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
   if (window.supabase) {
     supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
   } else {
     console.error("Supabase non chargé");
-    return; 
+    return;
   }
 
   const { data: { session } } = await supabaseClient.auth.getSession();
@@ -56,7 +57,55 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // Ajout Transaction Comptable
+  // Ajout Séance
+  const seanceForm = document.getElementById('seance-form');
+  if (seanceForm) {
+    seanceForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const patient_id = document.getElementById('seance-patient').value;
+      const rawDate = document.getElementById('seance-date').value;
+      const notes_suivi = document.getElementById('seance-notes').value.trim();
+      const montant = parseFloat(document.getElementById('seance-montant').value);
+      const mode_paiement = document.getElementById('seance-mode').value;
+      const est_paye = document.getElementById('seance-paye').checked;
+
+      if (!patient_id) {
+        alert("Veuillez choisir un patient !");
+        return;
+      }
+
+      const { error } = await supabaseClient
+        .from('seances')
+        .insert([{ 
+          patient_id, 
+          notes_suivi, 
+          montant, 
+          mode_paiement, 
+          est_paye,
+          date_seance: rawDate !== '' ? rawDate : new Date().toISOString()
+        }]);
+
+      if (error) alert("Erreur séance : " + error.message);
+      else {
+        seanceForm.reset();
+        document.getElementById('seance-patient').value = patient_id;
+        await loadSeancesForPatient(patient_id);
+        await updateFinancialSummary();
+      }
+    });
+  }
+
+  // Changement de patient dans le menu déroulant séances
+  const seancePatientSelect = document.getElementById('seance-patient');
+  if (seancePatientSelect) {
+    seancePatientSelect.addEventListener('change', (e) => {
+      const patientId = e.target.value;
+      if (patientId) loadSeancesForPatient(patientId);
+      else document.getElementById('seance-list').innerHTML = "<p>Sélectionnez un patient pour voir ses séances.</p>";
+    });
+  }
+
+  // Ajout Charge
   const comptaForm = document.getElementById('compta-form');
   if (comptaForm) {
     comptaForm.addEventListener('submit', async (e) => {
@@ -75,10 +124,11 @@ document.addEventListener('DOMContentLoaded', async () => {
           date_transaction: rawDate !== '' ? rawDate : new Date().toISOString().split('T')[0]
         }]);
 
-      if (error) alert("Erreur compta : " + error.message);
+      if (error) alert("Erreur charge : " + error.message);
       else {
         comptaForm.reset();
         await loadCompta();
+        await updateFinancialSummary();
       }
     });
   }
@@ -95,6 +145,7 @@ function showAppScreen() {
   }
   loadPatients();
   loadCompta();
+  updateFinancialSummary();
 }
 
 function showLoginScreen() {
@@ -108,13 +159,17 @@ function showLoginScreen() {
   }
 }
 
-// Chargement Patients
+// Chargement Patients & Alimentation du Select
 async function loadPatients() {
   const list = document.getElementById('patient-list');
+  const select = document.getElementById('seance-patient');
   const statTotal = document.getElementById('stat-total-patients');
   if (!list || !supabaseClient) return;
 
-  const { data: patients, error } = await supabaseClient.from('patients').select('*');
+  const { data: patients, error } = await supabaseClient
+    .from('patients')
+    .select('*')
+    .order('nom', { ascending: true });
 
   if (error) {
     list.innerHTML = `<p style="color:red;">Erreur : ${error.message}</p>`;
@@ -123,26 +178,98 @@ async function loadPatients() {
 
   if (statTotal) statTotal.textContent = patients ? patients.length : 0;
 
+  // Remplissage du menu déroulant des séances
+  if (select) {
+    select.innerHTML = '<option value="">-- Sélectionner un patient --</option>' +
+      (patients || []).map(p => `<option value="${p.id}">${p.nom} ${p.prenom}</option>`).join('');
+  }
+
   if (!patients || patients.length === 0) {
     list.innerHTML = "<p>Aucun patient enregistré.</p>";
     return;
   }
 
   list.innerHTML = patients.map(p => `
-    <div style="border: 1px solid #eee; padding: 10px; margin-bottom: 8px; border-radius: 5px; background: #fafafa;">
-      <strong>${p.nom || ''} ${p.prenom || ''}</strong>
-      <div style="font-size: 0.85em; color: #666;">📅 ${p.date_naissance || 'Non renseignée'}</div>
+    <div onclick="selectPatientForSeances('${p.id}')" style="border: 1px solid #eee; padding: 10px; margin-bottom: 8px; border-radius: 5px; background: #fafafa; cursor: pointer; transition: 0.2s;">
+      <strong>👤 ${p.nom || ''} ${p.prenom || ''}</strong>
+      <div style="font-size: 0.85em; color: #666;">📅 Née(e) le : ${p.date_naissance || 'Non renseignée'}</div>
     </div>
   `).join('');
 }
 
-// Chargement Comptabilité & Calculs Bilan
+// Sélection rapide d'un patient
+function selectPatientForSeances(patientId) {
+  const select = document.getElementById('seance-patient');
+  if (select) {
+    select.value = patientId;
+    loadSeancesForPatient(patientId);
+  }
+}
+
+// Chargement du suivi des séances pour un patient
+async function loadSeancesForPatient(patientId) {
+  currentSelectedPatientId = patientId;
+  const list = document.getElementById('seance-list');
+  if (!list) return;
+
+  list.innerHTML = "<p>Chargement des séances...</p>";
+
+  const { data: seances, error } = await supabaseClient
+    .from('seances')
+    .select('*')
+    .eq('patient_id', patientId)
+    .order('date_seance', { ascending: false });
+
+  if (error) {
+    list.innerHTML = `<p style="color:red;">Erreur séances : ${error.message}</p>`;
+    return;
+  }
+
+  if (!seances || seances.length === 0) {
+    list.innerHTML = "<p style='color:#7f8c8d;'>Aucune séance enregistrée pour ce patient.</p>";
+    return;
+  }
+
+  list.innerHTML = seances.map(s => {
+    const dateFormatted = new Date(s.date_seance).toLocaleDateString('fr-FR');
+    return `
+      <div style="border-left: 4px solid ${s.est_paye ? '#2ecc71' : '#e67e22'}; padding: 10px; margin-bottom: 10px; background: #f9f9f9; border-radius: 4px;">
+        <div style="display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 5px;">
+          <span>📅 ${dateFormatted}</span>
+          <span style="color: ${s.est_paye ? '#27ae60' : '#d35400'};">
+            ${Number(s.montant).toFixed(2)} € (${s.est_paye ? 'Payé - ' + s.mode_paiement : 'En attente'})
+          </span>
+        </div>
+        <p style="margin: 5px 0 0 0; font-size: 0.9em; color: #333; white-space: pre-line;">
+          ${s.notes_suivi || '<em>Aucune note saisie</em>'}
+        </p>
+        ${!s.est_paye ? `
+          <button onclick="togglePayment('${s.id}', true)" style="margin-top: 8px; background: #2ecc71; color: white; border: none; padding: 4px 8px; border-radius: 3px; font-size: 0.8em; cursor: pointer;">
+            Marquer comme réglé
+          </button>
+        ` : ''}
+      </div>
+    `;
+  }).join('');
+}
+
+// Marquer une séance comme réglée
+async function togglePayment(seanceId, estPaye) {
+  const { error } = await supabaseClient
+    .from('seances')
+    .update({ est_paye: estPaye })
+    .eq('id', seanceId);
+
+  if (error) alert("Erreur : " + error.message);
+  else {
+    if (currentSelectedPatientId) loadSeancesForPatient(currentSelectedPatientId);
+    updateFinancialSummary();
+  }
+}
+
+// Chargement des charges
 async function loadCompta() {
   const list = document.getElementById('compta-list');
-  const statRecettes = document.getElementById('stat-recettes');
-  const statCharges = document.getElementById('stat-charges');
-  const statBenefice = document.getElementById('stat-benefice');
-
   if (!list || !supabaseClient) return;
 
   const { data: items, error } = await supabaseClient
@@ -151,20 +278,48 @@ async function loadCompta() {
     .order('date_transaction', { ascending: false });
 
   if (error) {
-    list.innerHTML = `<p style="color:red;">Erreur compta : ${error.message}</p>`;
+    list.innerHTML = `<p style="color:red;">Erreur charges : ${error.message}</p>`;
     return;
   }
 
-  let totalRecettes = 0;
-  let totalCharges = 0;
-
-  if (items) {
-    items.forEach(item => {
-      const val = Number(item.montant);
-      if (item.type === 'recette') totalRecettes += val;
-      else totalCharges += val;
-    });
+  if (!items || items.length === 0) {
+    list.innerHTML = "<p style='color:#7f8c8d;'>Aucune charge enregistrée.</p>";
+    return;
   }
+
+  list.innerHTML = items.map(i => `
+    <div style="border-left: 4px solid #e74c3c; padding: 8px 12px; margin-bottom: 8px; background: #fafafa; border-radius: 4px; display: flex; justify-content: space-between;">
+      <div>
+        <strong>${i.titre}</strong>
+        <div style="font-size: 0.8em; color: #7f8c8d;">${i.date_transaction} • ${i.type.replace('_', ' ')}</div>
+      </div>
+      <div style="font-weight: bold; color: #c0392b;">
+        -${Number(i.montant).toFixed(2)} €
+      </div>
+    </div>
+  `).join('');
+}
+
+// Calcul global des recettes, charges et bénéfice
+async function updateFinancialSummary() {
+  const statRecettes = document.getElementById('stat-recettes');
+  const statCharges = document.getElementById('stat-charges');
+  const statBenefice = document.getElementById('stat-benefice');
+
+  // Recettes = Séances payées
+  const { data: seancesPayees } = await supabaseClient
+    .from('seances')
+    .select('montant')
+    .eq('est_paye', true);
+
+  const totalRecettes = (seancesPayees || []).reduce((acc, curr) => acc + Number(curr.montant), 0);
+
+  // Charges = Table comptabilite
+  const { data: charges } = await supabaseClient
+    .from('comptabilite')
+    .select('montant');
+
+  const totalCharges = (charges || []).reduce((acc, curr) => acc + Number(curr.montant), 0);
 
   const benefice = totalRecettes - totalCharges;
 
@@ -174,23 +329,6 @@ async function loadCompta() {
     statBenefice.textContent = benefice.toFixed(2) + " €";
     statBenefice.style.color = benefice >= 0 ? '#27ae60' : '#c0392b';
   }
-
-  if (!items || items.length === 0) {
-    list.innerHTML = "<p>Aucune écriture comptable.</p>";
-    return;
-  }
-
-  list.innerHTML = items.map(i => `
-    <div style="border-left: 4px solid ${i.type === 'recette' ? '#2ecc71' : '#e74c3c'}; padding: 8px 12px; margin-bottom: 8px; background: #fafafa; border-radius: 4px; display: flex; justify-content: space-between;">
-      <div>
-        <strong>${i.titre}</strong>
-        <div style="font-size: 0.8em; color: #7f8c8d;">${i.date_transaction} • ${i.type.replace('_', ' ')}</div>
-      </div>
-      <div style="font-weight: bold; color: ${i.type === 'recette' ? '#27ae60' : '#c0392b'};">
-        ${i.type === 'recette' ? '+' : '-'}${Number(i.montant).toFixed(2)} €
-      </div>
-    </div>
-  `).join('');
 }
 
 async function logout() {
