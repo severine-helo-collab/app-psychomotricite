@@ -1,5 +1,5 @@
 const SUPABASE_URL = "https://iyxurkbceiirjdigcyak.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml5eHVya2JjZWlpcmpkaWdjeWFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkwNDYzODQsImV4cCI6MjEwNDYyMjM4NH0.MGBADlkxP307mbUvU_07OEhN5sfqv9_wSTqIP5AVK-s"; // Remplace par ta vraie clé anon Supabase
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml5eHVya2JjZWlpcmpkaWdjeWFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkwNDYzODQsImV4cCI6MjEwNDYyMjM4NH0.MGBADlkxP307mbUvU_07OEhN5sfqv9_wSTqIP5AVK-s; // Remplace par ta vraie clé anon Supabase
 
 let supabaseClient;
 let currentPatient = null;
@@ -50,7 +50,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  // Mise à jour Prochain RDV
+  // FIX 1 : Enregistrement du Prochain RDV
   document.getElementById('rdv-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (!currentPatient) return;
@@ -63,15 +63,17 @@ document.addEventListener('DOMContentLoaded', async () => {
       .update({ prochain_rdv: nextRdv })
       .eq('id', currentPatient.id);
 
-    if (error) alert("Erreur RDV : " + error.message);
-    else {
+    if (error) {
+      alert("Erreur lors de l'enregistrement du RDV : " + error.message);
+    } else {
       currentPatient.prochain_rdv = nextRdv;
       updateRdvDisplay();
       await loadPatients();
+      alert("Prochain rendez-vous enregistré !");
     }
   });
 
-  // Création Séance
+  // FIX 2 : Enregistrement d'une séance avec résumé
   document.getElementById('seance-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (!currentPatient) return;
@@ -88,16 +90,16 @@ document.addEventListener('DOMContentLoaded', async () => {
       .insert([{ 
         patient_id: currentPatient.id, 
         titre: titre || 'Séance',
-        notes_suivi, 
-        montant, 
-        mode_paiement, 
-        est_paye,
-        date_seance: rawDate !== '' ? rawDate : new Date().toISOString()
+        notes_suivi: notes_suivi, 
+        montant: isNaN(montant) ? 45.00 : montant, 
+        mode_paiement: mode_paiement, 
+        est_paye: est_paye,
+        date_seance: rawDate !== '' ? new Date(rawDate).toISOString() : new Date().toISOString()
       }]);
 
-    if (error) alert("Erreur séance : " + error.message);
-    else {
-      document.getElementById('seance-titre').value = '';
+    if (error) {
+      alert("Erreur lors de l'enregistrement de la séance : " + error.message);
+    } else {
       document.getElementById('seance-notes').value = '';
       await loadSeancesForCurrentPatient();
       await updateFinancialSummary();
@@ -226,7 +228,7 @@ function updateRdvDisplay() {
     const d = new Date(currentPatient.prochain_rdv);
     display.textContent = `${d.toLocaleDateString('fr-FR')} à ${d.toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'})}`;
     
-    // Ajuster le champ datetime-local
+    // Format compatible avec <input type="datetime-local"> (YYYY-MM-DDTHH:mm)
     const localIso = new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
     input.value = localIso;
   } else {
@@ -269,7 +271,7 @@ async function loadSeancesForCurrentPatient() {
       <div style="font-size: 0.9em; margin: 5px 0; color: ${s.est_paye ? '#27ae60' : '#d35400'}; font-weight: bold;">
         ${Number(s.montant).toFixed(2)} € (${s.est_paye ? 'Payé - ' + s.mode_paiement : 'En attente'})
       </div>
-      ${s.notes_suivi ? `<div style="background: white; padding: 8px; border-radius: 4px; font-size: 0.9em; margin-top: 5px; white-space: pre-line;">${s.notes_suivi}</div>` : ''}
+      ${s.notes_suivi ? `<div style="background: white; padding: 10px; border-radius: 4px; font-size: 0.9em; margin-top: 8px; border-left: 3px solid #8e44ad; white-space: pre-line;"><strong>Résumé :</strong><br>${s.notes_suivi}</div>` : ''}
       ${!s.est_paye ? `<button onclick="togglePayment('${s.id}', true)" style="margin-top: 8px; background: #2ecc71; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 0.8em; cursor: pointer;">Marquer comme payé</button>` : ''}
     </div>
   `).join('');
