@@ -1,18 +1,18 @@
 // ==========================================
 // 1. CONFIGURATION SUPABASE ET SÉCURITÉ
 // ==========================================
-// Déclaration UNIQUE au sommet du fichier
-const SUPABASE_URL = 'https://iyxurkbceiirjdigcyak.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml5eHVya2JjZWlpcmpkaWdjeWFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkwNDYzODQsImV4cCI6MjEwNDYyMjM4NH0.MGBADlkxP307mbUvU_07OEhN5sfqv9_wSTqIP5AVK-s';
+// Utilisation de var avec garde de sécurité pour éviter les redéclarations
+if (typeof SUPABASE_URL === 'undefined') {
+  var SUPABASE_URL = 'https://iyxurkbceiirjdigcyak.supabase.co';
+}
+if (typeof SUPABASE_ANON_KEY === 'undefined') {
+  var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml5eHVya2JjZWlpcmpkaWdjeWFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkwNDYzODQsImV4cCI6MjEwNDYyMjM4NH0.MGBADlkxP307mbUvU_07OEhN5sfqv9_wSTqIP5AVK-sN';
+}
 
-// Client Supabase
-const supabaseClient = window.supabase 
-  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) 
-  : null;
-
-// Initialisation du client Supabase
-const supabaseClient = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
-
+// Initialisation unique du client
+if (typeof supabaseClient === 'undefined') {
+  var supabaseClient = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+}
 // Variables globales d'état
 let currentUser = null;
 let isSignUpMode = false;
