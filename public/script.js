@@ -284,6 +284,24 @@ async function deletePatient(id) {
 // 6. FICHE DÉTAILLÉE DU PATIENT (MODAL OEIL)
 // ==========================================
 function openPatientDetail(patientId) {
+  console.log("Clic détecté pour l'ID patient :", patientId);
+  
+  const patient = patientsData.find(p => p.id === patientId);
+  if (!patient) {
+    console.error("Patient non trouvé dans patientsData pour l'ID :", patientId);
+    alert("Erreur : Patient non trouvé.");
+    return;
+  }
+  
+  const modalEl = document.getElementById('patientDetailModal');
+  if (!modalEl) {
+    console.error("Élément #patientDetailModal introuvable dans le HTML !");
+    alert("Erreur : La modale #patientDetailModal manque dans le fichier HTML.");
+    return;
+  }
+
+  // ... (suite du code de la fonction)
+function openPatientDetail(patientId) {
   const patient = patientsData.find(p => p.id === patientId);
   if (!patient) return;
 
