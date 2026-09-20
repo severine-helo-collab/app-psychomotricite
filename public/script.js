@@ -1,10 +1,10 @@
 // ==========================================
-// 1. CONFIGURATION SUPABASE
+// 1. CONFIGURATION SUPABASE ET SÉCURITÉ
 // ==========================================
 const SUPABASE_URL = 'https://iyxurkbceiirjdigcyak.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml5eHVya2JjZWlpcmpkaWdjeWFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkwNDYzODQsImV4cCI6MjEwNDYyMjM4NH0.MGBADlkxP307mbUvU_07OEhN5sfqv9_wSTqIP5AVK-s';
 
-// Changement du nom de la variable pour éviter le conflit avec le CDN
+// Client Supabase
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // Variables globales d'état
@@ -12,6 +12,23 @@ let currentUser = null;
 let isSignUpMode = false;
 let patientsData = [];
 let rdvData = [];
+
+// Fonction utilitaire de protection XSS
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+// Fonction utilitaire pour attacher un événement de manière sécurisée
+function addListenerIfExists(id, event, handler) {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener(event, handler);
+}
 
 // ==========================================
 // 2. INITIALISATION ET ÉVÉNEMENTS
@@ -23,7 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function initEventListeners() {
   // Bascule Mode Connexion / Inscription
-  document.getElementById('toggle-auth-mode').addEventListener('click', (e) => {
+  addListenerIfExists('toggle-auth-mode', 'click', (e) => {
     e.preventDefault();
     isSignUpMode = !isSignUpMode;
     const btnSubmit = document.getElementById('btn-auth-submit');
@@ -31,18 +48,18 @@ function initEventListeners() {
     const toggleBtn = document.getElementById('toggle-auth-mode');
 
     if (isSignUpMode) {
-      btnSubmit.textContent = "S'inscrire";
-      subtitle.textContent = "Créer un nouveau compte praticien";
-      toggleBtn.textContent = "Déjà un compte ? Se connecter";
+      if (btnSubmit) btnSubmit.textContent = "S'inscrire";
+      if (subtitle) subtitle.textContent = "Créer un nouveau compte praticien";
+      if (toggleBtn) toggleBtn.textContent = "Déjà un compte ? Se connecter";
     } else {
-      btnSubmit.textContent = "Se connecter";
-      subtitle.textContent = "Connectez-vous à votre espace";
-      toggleBtn.textContent = "Pas encore de compte ? S'inscrire";
+      if (btnSubmit) btnSubmit.textContent = "Se connecter";
+      if (subtitle) subtitle.textContent = "Connectez-vous à votre espace";
+      if (toggleBtn) toggleBtn.textContent = "Pas encore de compte ? S'inscrire";
     }
   });
 
   // Soumission Authentification
-  document.getElementById('auth-form').addEventListener('submit', async (e) => {
+  addListenerIfExists('auth-form', 'submit', async (e) => {
     e.preventDefault();
     const email = document.getElementById('auth-email').value;
     const password = document.getElementById('auth-password').value;
@@ -59,35 +76,36 @@ function initEventListeners() {
   });
 
   // Déconnexion
-  document.getElementById('btn-logout').addEventListener('click', async () => {
+  addListenerIfExists('btn-logout', 'click', async () => {
     await supabaseClient.auth.signOut();
     checkSession();
   });
 
-  // Navigation
-  document.getElementById('nav-dashboard').addEventListener('click', () => switchTab('dashboard'));
-  document.getElementById('nav-patients').addEventListener('click', () => switchTab('patients'));
-  document.getElementById('nav-rendezvous').addEventListener('click', () => switchTab('rendezvous'));
-  document.getElementById('nav-finance').addEventListener('click', () => switchTab('finance'));
+  // Navigation principale
+  addListenerIfExists('nav-dashboard', 'click', () => switchTab('dashboard'));
+  addListenerIfExists('nav-patients', 'click', () => switchTab('patients'));
+  addListenerIfExists('nav-rendezvous', 'click', () => switchTab('rendezvous'));
+  addListenerIfExists('nav-finance', 'click', () => switchTab('finance'));
 
   // Raccourcis cartes tableau de bord
-  document.getElementById('card-stat-patients').addEventListener('click', () => switchTab('patients'));
-  document.getElementById('card-stat-rdv').addEventListener('click', () => switchTab('rendezvous'));
-  document.getElementById('card-stat-finance').addEventListener('click', () => switchTab('finance'));
+  addListenerIfExists('card-stat-patients', 'click', () => switchTab('patients'));
+  addListenerIfExists('card-stat-rdv', 'click', () => switchTab('rendezvous'));
+  addListenerIfExists('card-stat-finance', 'click', () => switchTab('finance'));
 
   // Recherche patient
-  document.getElementById('searchPatient').addEventListener('input', (e) => {
-    const term = e.target.value.toLowerCase();
+  addListenerIfExists('searchPatient', 'input', (e) => {
+    const term = e.target.value.toLowerCase().trim();
     const filtered = patientsData.filter(p => 
-      p.nom.toLowerCase().includes(term) || p.prenom.toLowerCase().includes(term)
+      (p.nom && p.nom.toLowerCase().includes(term)) || 
+      (p.prenom && p.prenom.toLowerCase().includes(term))
     );
     renderPatientsTable(filtered);
   });
 
   // Formulaires Modals
-  document.getElementById('add-patient-form').addEventListener('submit', handleAddPatient);
-  document.getElementById('edit-patient-form').addEventListener('submit', handleEditPatient);
-  document.getElementById('add-rdv-form').addEventListener('submit', handleAddRendezvous);
+  addListenerIfExists('add-patient-form', 'submit', handleAddPatient);
+  addListenerIfExists('edit-patient-form', 'submit', handleEditPatient);
+  addListenerIfExists('add-rdv-form', 'submit', handleAddRendezvous);
 }
 
 // ==========================================
@@ -95,23 +113,28 @@ function initEventListeners() {
 // ==========================================
 async function checkSession() {
   const { data: { session } } = await supabaseClient.auth.getSession();
+  const authSection = document.getElementById('auth-section');
+  const appSection = document.getElementById('app-section');
+
   if (session) {
     currentUser = session.user;
-    document.getElementById('auth-section').style.display = 'none';
-    document.getElementById('app-section').style.display = 'block';
+    if (authSection) authSection.style.display = 'none';
+    if (appSection) appSection.style.display = 'block';
     await loadAllData();
     switchTab('dashboard');
   } else {
     currentUser = null;
-    document.getElementById('auth-section').style.display = 'block';
-    document.getElementById('app-section').style.display = 'none';
+    if (authSection) authSection.style.display = 'block';
+    if (appSection) appSection.style.display = 'none';
   }
 }
 
 function switchTab(tabName) {
   const tabs = ['dashboard', 'patients', 'rendezvous', 'finance'];
   tabs.forEach(tab => {
-    document.getElementById(`section-${tab}`).style.display = (tab === tabName) ? 'block' : 'none';
+    const section = document.getElementById(`section-${tab}`);
+    if (section) section.style.display = (tab === tabName) ? 'block' : 'none';
+
     const navLink = document.getElementById(`nav-${tab}`);
     if (navLink) {
       if (tab === tabName) navLink.classList.add('active');
@@ -138,8 +161,9 @@ async function fetchPatients() {
     .select('*')
     .order('nom', { ascending: true });
 
-  if (error) console.error("Erreur chargement patients:", error);
-  else {
+  if (error) {
+    console.error("Erreur chargement patients:", error);
+  } else {
     patientsData = data || [];
     renderPatientsTable(patientsData);
   }
@@ -151,8 +175,9 @@ async function fetchRendezvous() {
     .select('*, patients(nom, prenom)')
     .order('date_heure', { ascending: false });
 
-  if (error) console.error("Erreur chargement RDV:", error);
-  else {
+  if (error) {
+    console.error("Erreur chargement RDV:", error);
+  } else {
     rdvData = data || [];
     renderRdvTable(rdvData);
   }
@@ -163,6 +188,8 @@ async function fetchRendezvous() {
 // ==========================================
 function renderPatientsTable(patients) {
   const tbody = document.getElementById('patients-table-body');
+  if (!tbody) return;
+
   if (patients.length === 0) {
     tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">Aucun patient trouvé.</td></tr>';
     return;
@@ -170,11 +197,11 @@ function renderPatientsTable(patients) {
 
   tbody.innerHTML = patients.map(p => `
     <tr>
-      <td class="fw-bold">${p.nom}</td>
-      <td>${p.prenom}</td>
-      <td>${p.telephone || '-'}</td>
-      <td>${p.email || '-'}</td>
-      <td><small class="text-muted">${p.adresse || '-'}</small></td>
+      <td class="fw-bold">${escapeHtml(p.nom)}</td>
+      <td>${escapeHtml(p.prenom)}</td>
+      <td>${escapeHtml(p.telephone) || '-'}</td>
+      <td>${escapeHtml(p.email) || '-'}</td>
+      <td><small class="text-muted">${escapeHtml(p.adresse) || '-'}</small></td>
       <td class="text-end">
         <button class="btn btn-sm btn-outline-info me-1" onclick="openPatientDetail('${p.id}')" title="Voir la fiche"><i class="bi bi-eye"></i></button>
         <button class="btn btn-sm btn-outline-primary me-1" onclick="openEditPatientModal('${p.id}')" title="Modifier"><i class="bi bi-pencil"></i></button>
@@ -188,18 +215,20 @@ async function handleAddPatient(e) {
   e.preventDefault();
   const newPatient = {
     user_id: currentUser.id,
-    nom: document.getElementById('nom').value,
-    prenom: document.getElementById('prenom').value,
+    nom: document.getElementById('nom').value.trim(),
+    prenom: document.getElementById('prenom').value.trim(),
     date_naissance: document.getElementById('date_naissance').value || null,
-    telephone: document.getElementById('telephone').value || null,
-    email: document.getElementById('email').value || null,
-    adresse: document.getElementById('adresse').value || null
+    telephone: document.getElementById('telephone').value.trim() || null,
+    email: document.getElementById('email').value.trim() || null,
+    adresse: document.getElementById('adresse').value.trim() || null
   };
 
   const { error } = await supabaseClient.from('patients').insert([newPatient]);
-  if (error) alert("Erreur lors de l'ajout : " + error.message);
-  else {
-    bootstrap.Modal.getInstance(document.getElementById('addPatientModal')).hide();
+  if (error) {
+    alert("Erreur lors de l'ajout : " + error.message);
+  } else {
+    const modalEl = document.getElementById('addPatientModal');
+    if (modalEl) bootstrap.Modal.getOrCreateInstance(modalEl).hide();
     document.getElementById('add-patient-form').reset();
     await loadAllData();
   }
@@ -210,32 +239,35 @@ function openEditPatientModal(patientId) {
   if (!p) return;
 
   document.getElementById('edit-patient-id').value = p.id;
-  document.getElementById('edit-nom').value = p.nom;
-  document.getElementById('edit-prenom').value = p.prenom;
+  document.getElementById('edit-nom').value = p.nom || '';
+  document.getElementById('edit-prenom').value = p.prenom || '';
   document.getElementById('edit-date-naissance').value = p.date_naissance || '';
   document.getElementById('edit-telephone').value = p.telephone || '';
   document.getElementById('edit-email').value = p.email || '';
   document.getElementById('edit-adresse').value = p.adresse || '';
 
-  new bootstrap.Modal(document.getElementById('editPatientModal')).show();
+  const modalEl = document.getElementById('editPatientModal');
+  if (modalEl) bootstrap.Modal.getOrCreateInstance(modalEl).show();
 }
 
 async function handleEditPatient(e) {
   e.preventDefault();
   const id = document.getElementById('edit-patient-id').value;
   const updatedPatient = {
-    nom: document.getElementById('edit-nom').value,
-    prenom: document.getElementById('edit-prenom').value,
+    nom: document.getElementById('edit-nom').value.trim(),
+    prenom: document.getElementById('edit-prenom').value.trim(),
     date_naissance: document.getElementById('edit-date-naissance').value || null,
-    telephone: document.getElementById('edit-telephone').value || null,
-    email: document.getElementById('edit-email').value || null,
-    adresse: document.getElementById('edit-adresse').value || null
+    telephone: document.getElementById('edit-telephone').value.trim() || null,
+    email: document.getElementById('edit-email').value.trim() || null,
+    adresse: document.getElementById('edit-adresse').value.trim() || null
   };
 
   const { error } = await supabaseClient.from('patients').update(updatedPatient).eq('id', id);
-  if (error) alert("Erreur de modification : " + error.message);
-  else {
-    bootstrap.Modal.getInstance(document.getElementById('editPatientModal')).hide();
+  if (error) {
+    alert("Erreur de modification : " + error.message);
+  } else {
+    const modalEl = document.getElementById('editPatientModal');
+    if (modalEl) bootstrap.Modal.getOrCreateInstance(modalEl).hide();
     await loadAllData();
   }
 }
@@ -272,7 +304,7 @@ function openPatientDetail(patientId) {
     ageStr = `${age} ans`;
   }
 
-  // Recherche du prochain rendez-vous (le premier RDV à venir)
+  // Recherche du prochain rendez-vous
   const upcomingRdvs = patientRdvs
     .filter(r => new Date(r.date_heure) >= now)
     .sort((a, b) => new Date(a.date_heure) - new Date(b.date_heure));
@@ -283,7 +315,7 @@ function openPatientDetail(patientId) {
   const modalContentHtml = `
     <div class="modal-header bg-primary text-white">
       <h5 class="modal-title fw-bold">
-        <i class="bi bi-person-vcard me-2"></i>Fiche Patient : ${patient.nom.toUpperCase()} ${patient.prenom}
+        <i class="bi bi-person-vcard me-2"></i>Fiche Patient : ${escapeHtml(patient.nom).toUpperCase()} ${escapeHtml(patient.prenom)}
       </h5>
       <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fermer"></button>
     </div>
@@ -295,12 +327,12 @@ function openPatientDetail(patientId) {
           <h6 class="text-uppercase text-primary fw-bold mb-3"><i class="bi bi-person-badge me-2"></i>Coordonnées & Informations</h6>
           <div class="row g-3">
             <div class="col-md-6">
-              <p class="mb-2"><strong><i class="bi bi-cake2 text-secondary me-2"></i>Âge & Date de naissance :</strong> ${ageStr} (${dobStr})</p>
-              <p class="mb-2"><strong><i class="bi bi-telephone text-secondary me-2"></i>Téléphone :</strong> ${patient.telephone || '<span class="text-muted">Non renseigné</span>'}</p>
+              <p class="mb-2"><strong><i class="bi bi-cake2 text-secondary me-2"></i>Âge & Date de naissance :</strong> ${escapeHtml(ageStr)} (${escapeHtml(dobStr)})</p>
+              <p class="mb-2"><strong><i class="bi bi-telephone text-secondary me-2"></i>Téléphone :</strong> ${escapeHtml(patient.telephone) || '<span class="text-muted">Non renseigné</span>'}</p>
             </div>
             <div class="col-md-6">
-              <p class="mb-2"><strong><i class="bi bi-envelope text-secondary me-2"></i>Email :</strong> ${patient.email || '<span class="text-muted">Non renseigné</span>'}</p>
-              <p class="mb-2"><strong><i class="bi bi-geo-alt text-secondary me-2"></i>Adresse :</strong> ${patient.adresse || '<span class="text-muted">Non renseignée</span>'}</p>
+              <p class="mb-2"><strong><i class="bi bi-envelope text-secondary me-2"></i>Email :</strong> ${escapeHtml(patient.email) || '<span class="text-muted">Non renseigné</span>'}</p>
+              <p class="mb-2"><strong><i class="bi bi-geo-alt text-secondary me-2"></i>Adresse :</strong> ${escapeHtml(patient.adresse) || '<span class="text-muted">Non renseignée</span>'}</p>
             </div>
           </div>
         </div>
@@ -314,7 +346,7 @@ function openPatientDetail(patientId) {
             <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
               <div>
                 <span class="fs-5 fw-bold text-dark me-3"><i class="bi bi-clock me-1"></i>${new Date(nextRdv.date_heure).toLocaleString('fr-FR', { dateStyle: 'full', timeStyle: 'short' })}</span>
-                <span class="badge bg-primary fs-6">${nextRdv.motif || 'Consultation'}</span>
+                <span class="badge bg-primary fs-6">${escapeHtml(nextRdv.motif) || 'Consultation'}</span>
               </div>
               <div class="fw-bold fs-5 text-success">${parseFloat(nextRdv.tarif || 0).toFixed(2)} €</div>
             </div>
@@ -349,15 +381,15 @@ function openPatientDetail(patientId) {
                 return `
                   <tr>
                     <td class="fw-bold">${dateFormatted}</td>
-                    <td><span class="badge bg-secondary">${r.motif || '-'}</span></td>
+                    <td><span class="badge bg-secondary">${escapeHtml(r.motif) || '-'}</span></td>
                     <td style="min-width: 200px;">
-                      <small class="text-wrap">${r.resume || '<span class="text-muted fst-italic">Aucun résumé</span>'}</small>
+                      <small class="text-wrap">${escapeHtml(r.resume) || '<span class="text-muted fst-italic">Aucun résumé</span>'}</small>
                     </td>
                     <td class="fw-bold">${parseFloat(r.tarif || 0).toFixed(2)} €</td>
-                    <td><small class="text-muted">${r.mode_paiement || 'Espèces'}</small></td>
+                    <td><small class="text-muted">${escapeHtml(r.mode_paiement) || 'Espèces'}</small></td>
                     <td>
                       <span class="badge ${isPaye ? 'bg-success' : 'bg-warning text-dark'}">
-                        ${r.statut_paiement || 'En attente'}
+                        ${escapeHtml(r.statut_paiement) || 'En attente'}
                       </span>
                     </td>
                   </tr>
@@ -374,14 +406,14 @@ function openPatientDetail(patientId) {
     </div>
   `;
 
-  // Injection du HTML dans la modale
   const modalEl = document.getElementById('patientDetailModal');
+  if (!modalEl) return;
+
   const modalContentEl = modalEl.querySelector('.modal-content');
   if (modalContentEl) {
     modalContentEl.innerHTML = modalContentHtml;
   }
 
-  // Affichage de la modale
   const bsModal = bootstrap.Modal.getOrCreateInstance(modalEl);
   bsModal.show();
 }
@@ -391,19 +423,23 @@ function openPatientDetail(patientId) {
 // ==========================================
 function populatePatientSelect() {
   const select = document.getElementById('rdv-patient-select');
+  if (!select) return;
+
   select.innerHTML = '<option value="">-- Sélectionner un patient --</option>' + 
-    patientsData.map(p => `<option value="${p.id}">${p.nom.toUpperCase()} ${p.prenom}</option>`).join('');
+    patientsData.map(p => `<option value="${p.id}">${escapeHtml(p.nom).toUpperCase()} ${escapeHtml(p.prenom)}</option>`).join('');
 }
 
 function renderRdvTable(rdvs) {
   const tbody = document.getElementById('rdv-table-body');
+  if (!tbody) return;
+
   if (rdvs.length === 0) {
     tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">Aucun rendez-vous.</td></tr>';
     return;
   }
 
   tbody.innerHTML = rdvs.map(r => {
-    const patientName = r.patients ? `${r.patients.nom.toUpperCase()} ${r.patients.prenom}` : 'Patient inconnu';
+    const patientName = r.patients ? `${escapeHtml(r.patients.nom).toUpperCase()} ${escapeHtml(r.patients.prenom)}` : 'Patient inconnu';
     const dateFormatted = new Date(r.date_heure).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' });
     const isPaye = r.statut_paiement === 'Réglé';
 
@@ -411,11 +447,11 @@ function renderRdvTable(rdvs) {
       <tr>
         <td class="fw-bold">${patientName}</td>
         <td>${dateFormatted}</td>
-        <td>${r.motif}</td>
-        <td>${parseFloat(r.tarif).toFixed(2)} €</td>
+        <td>${escapeHtml(r.motif)}</td>
+        <td>${parseFloat(r.tarif || 0).toFixed(2)} €</td>
         <td>
           <span class="badge ${isPaye ? 'bg-success' : 'bg-warning text-dark'}" style="cursor:pointer;" onclick="togglePaymentStatus('${r.id}', '${r.statut_paiement}')">
-            ${r.statut_paiement} <i class="bi bi-arrow-repeat ms-1"></i>
+            ${escapeHtml(r.statut_paiement)} <i class="bi bi-arrow-repeat ms-1"></i>
           </span>
         </td>
         <td class="text-end">
@@ -432,17 +468,19 @@ async function handleAddRendezvous(e) {
     user_id: currentUser.id,
     patient_id: document.getElementById('rdv-patient-select').value,
     date_heure: document.getElementById('rdv-date').value,
-    motif: document.getElementById('rdv-motif').value,
+    motif: document.getElementById('rdv-motif').value.trim(),
     tarif: parseFloat(document.getElementById('rdv-tarif').value) || 0,
     mode_paiement: document.getElementById('rdv-paiement').value,
     statut_paiement: document.getElementById('rdv-statut-paiement').value,
-    resume: document.getElementById('rdv-resume').value || null
+    resume: document.getElementById('rdv-resume').value.trim() || null
   };
 
   const { error } = await supabaseClient.from('rendezvous').insert([newRdv]);
-  if (error) alert("Erreur lors de l'ajout du RDV : " + error.message);
-  else {
-    bootstrap.Modal.getInstance(document.getElementById('addRendezvousModal')).hide();
+  if (error) {
+    alert("Erreur lors de l'ajout du RDV : " + error.message);
+  } else {
+    const modalEl = document.getElementById('addRendezvousModal');
+    if (modalEl) bootstrap.Modal.getOrCreateInstance(modalEl).hide();
     document.getElementById('add-rdv-form').reset();
     await loadAllData();
   }
@@ -467,73 +505,90 @@ async function deleteRendezvous(id) {
 // 8. TABLEAU DE BORD & COMPTABILITÉ
 // ==========================================
 function updateDashboard() {
-  document.getElementById('stat-patients-count').textContent = patientsData.length;
+  const statPatients = document.getElementById('stat-patients-count');
+  if (statPatients) statPatients.textContent = patientsData.length;
 
   const now = new Date();
-  const todayStr = now.toISOString().split('T')[0];
 
-  const rdvToday = rdvData.filter(r => r.date_heure.startsWith(todayStr));
-  document.getElementById('stat-rdv-today-count').textContent = rdvToday.length;
-  document.getElementById('stat-rdv-count').textContent = rdvData.length;
+  // RDV du jour en date locale
+  const rdvToday = rdvData.filter(r => {
+    if (!r.date_heure) return false;
+    const d = new Date(r.date_heure);
+    return d.getDate() === now.getDate() &&
+           d.getMonth() === now.getMonth() &&
+           d.getFullYear() === now.getFullYear();
+  });
+
+  const statRdvToday = document.getElementById('stat-rdv-today-count');
+  const statRdvTotal = document.getElementById('stat-rdv-count');
+  if (statRdvToday) statRdvToday.textContent = rdvToday.length;
+  if (statRdvTotal) statRdvTotal.textContent = rdvData.length;
 
   // Calcul CA du mois courant
   const currentMonth = now.getMonth();
   const currentYear = now.getFullYear();
 
   const caMois = rdvData.filter(r => {
+    if (!r.date_heure) return false;
     const d = new Date(r.date_heure);
     return d.getMonth() === currentMonth && d.getFullYear() === currentYear && r.statut_paiement === 'Réglé';
   }).reduce((acc, r) => acc + (parseFloat(r.tarif) || 0), 0);
 
-  document.getElementById('stat-ca-mois').textContent = `${caMois.toFixed(2)} €`;
+  const statCaMois = document.getElementById('stat-ca-mois');
+  if (statCaMois) statCaMois.textContent = `${caMois.toFixed(2)} €`;
 
   // Prochains RDV sur le tableau de bord
   const upcomingRdvs = rdvData
     .filter(r => new Date(r.date_heure) >= now)
-    .sort((a,b) => new Date(a.date_heure) - new Date(b.date_heure))
+    .sort((a, b) => new Date(a.date_heure) - new Date(b.date_heure))
     .slice(0, 5);
 
   const dashboardTable = document.getElementById('dashboard-upcoming-rdv-body');
-  if (upcomingRdvs.length === 0) {
-    dashboardTable.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">Aucun rendez-vous à venir.</td></tr>';
-  } else {
-    dashboardTable.innerHTML = upcomingRdvs.map(r => {
-      const pName = r.patients ? `${r.patients.nom.toUpperCase()} ${r.patients.prenom}` : 'Patient inconnu';
-      return `
-        <tr>
-          <td class="fw-bold">${pName}</td>
-          <td>${new Date(r.date_heure).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}</td>
-          <td>${r.motif}</td>
-          <td>${parseFloat(r.tarif).toFixed(2)} €</td>
-          <td><span class="badge ${r.statut_paiement === 'Réglé' ? 'bg-success' : 'bg-warning text-dark'}">${r.statut_paiement}</span></td>
-        </tr>
-      `;
-    }).join('');
+  if (dashboardTable) {
+    if (upcomingRdvs.length === 0) {
+      dashboardTable.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">Aucun rendez-vous à venir.</td></tr>';
+    } else {
+      dashboardTable.innerHTML = upcomingRdvs.map(r => {
+        const pName = r.patients ? `${escapeHtml(r.patients.nom).toUpperCase()} ${escapeHtml(r.patients.prenom)}` : 'Patient inconnu';
+        return `
+          <tr>
+            <td class="fw-bold">${pName}</td>
+            <td>${new Date(r.date_heure).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}</td>
+            <td>${escapeHtml(r.motif)}</td>
+            <td>${parseFloat(r.tarif || 0).toFixed(2)} €</td>
+            <td><span class="badge ${r.statut_paiement === 'Réglé' ? 'bg-success' : 'bg-warning text-dark'}">${escapeHtml(r.statut_paiement)}</span></td>
+          </tr>
+        `;
+      }).join('');
+    }
   }
 }
 
 function renderFinanceTable() {
   const tbody = document.getElementById('finance-table-body');
+  if (!tbody) return;
+
   if (rdvData.length === 0) {
     tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">Aucune transaction enregistrée.</td></tr>';
     return;
   }
 
   tbody.innerHTML = rdvData.map(r => {
-    const pName = r.patients ? `${r.patients.nom.toUpperCase()} ${r.patients.prenom}` : 'Patient inconnu';
+    const pName = r.patients ? `${escapeHtml(r.patients.nom).toUpperCase()} ${escapeHtml(r.patients.prenom)}` : 'Patient inconnu';
     return `
       <tr>
         <td>${new Date(r.date_heure).toLocaleDateString('fr-FR')}</td>
         <td class="fw-bold">${pName}</td>
-        <td>${r.motif}</td>
-        <td>${r.mode_paiement || 'Espèces'}</td>
-        <td><span class="badge ${r.statut_paiement === 'Réglé' ? 'bg-success' : 'bg-warning text-dark'}">${r.statut_paiement}</span></td>
-        <td class="fw-bold ${r.statut_paiement === 'Réglé' ? 'text-success' : 'text-muted'}">${parseFloat(r.tarif).toFixed(2)} €</td>
+        <td>${escapeHtml(r.motif)}</td>
+        <td>${escapeHtml(r.mode_paiement) || 'Espèces'}</td>
+        <td><span class="badge ${r.statut_paiement === 'Réglé' ? 'bg-success' : 'bg-warning text-dark'}">${escapeHtml(r.statut_paiement)}</span></td>
+        <td class="fw-bold ${r.statut_paiement === 'Réglé' ? 'text-success' : 'text-muted'}">${parseFloat(r.tarif || 0).toFixed(2)} €</td>
       </tr>
     `;
   }).join('');
 
-  // Total encaissé global affiché sur la page compta
+  // Total encaissé global
   const totalEncaisse = rdvData.filter(r => r.statut_paiement === 'Réglé').reduce((acc, r) => acc + (parseFloat(r.tarif) || 0), 0);
-  document.getElementById('finance-total-mois').textContent = `${totalEncaisse.toFixed(2)} €`;
+  const financeTotalEl = document.getElementById('finance-total-mois');
+  if (financeTotalEl) financeTotalEl.textContent = `${totalEncaisse.toFixed(2)} €`;
 }
