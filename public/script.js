@@ -255,71 +255,135 @@ function openPatientDetail(patientId) {
   const patient = patientsData.find(p => p.id === patientId);
   if (!patient) return;
 
-  // Information Personnelles
-  document.getElementById('detail-patient-nom').textContent = `${patient.nom.toUpperCase()} ${patient.prenom}`;
-  document.getElementById('detail-patient-tel').textContent = patient.telephone || 'Non renseigné';
-  document.getElementById('detail-patient-email').textContent = patient.email || 'Non renseigné';
-  
-  if (patient.date_naissance) {
-    const dob = new Date(patient.date_naissance);
-    document.getElementById('detail-patient-dob').textContent = dob.toLocaleDateString('fr-FR');
-    const age = Math.floor((new Date() - dob) / (365.25 * 24 * 60 * 60 * 1000));
-    document.getElementById('detail-patient-age').textContent = `${age} ans`;
-  } else {
-    document.getElementById('detail-patient-dob').textContent = 'Non renseignée';
-    document.getElementById('detail-patient-age').textContent = '-';
-  }
-
-  // Filtrage des rendez-vous du patient
-  const patientRdvs = rdvData.filter(r => r.patient_id === patientId);
   const now = new Date();
 
-  // Bilan Financier individuel
-  const nbSeances = patientRdvs.length;
-  const totalGenere = patientRdvs.reduce((acc, r) => acc + (parseFloat(r.tarif) || 0), 0);
-  const totalPaye = patientRdvs.filter(r => r.statut_paiement === 'Réglé').reduce((acc, r) => acc + (parseFloat(r.tarif) || 0), 0);
-  const totalAttente = patientRdvs.filter(r => r.statut_paiement === 'En attente').reduce((acc, r) => acc + (parseFloat(r.tarif) || 0), 0);
+  // Tous les RDV de ce patient (du plus récent au plus ancien)
+  const patientRdvs = rdvData
+    .filter(r => r.patient_id === patientId)
+    .sort((a, b) => new Date(b.date_heure) - new Date(a.date_heure));
 
-  document.getElementById('detail-fin-nb-seances').textContent = nbSeances;
-  document.getElementById('detail-fin-total-genere').textContent = `${totalGenere.toFixed(2)} €`;
-  document.getElementById('detail-fin-total-paye').textContent = `${totalPaye.toFixed(2)} €`;
-  document.getElementById('detail-fin-total-attente').textContent = `${totalAttente.toFixed(2)} €`;
-
-  // Séances à venir vs Historique
-  const upcoming = patientRdvs.filter(r => new Date(r.date_heure) >= now).sort((a,b) => new Date(a.date_heure) - new Date(b.date_heure));
-  const history = patientRdvs.filter(r => new Date(r.date_heure) < now).sort((a,b) => new Date(b.date_heure) - new Date(a.date_heure));
-
-  // Affichage séances à venir
-  const upcomingDiv = document.getElementById('detail-rdv-a-venir');
-  if (upcoming.length === 0) {
-    upcomingDiv.innerHTML = '<p class="text-muted small">Aucune séance à venir.</p>';
-  } else {
-    upcomingDiv.innerHTML = upcoming.map(r => `
-      <div class="p-2 mb-2 bg-white rounded border border-primary border-start-4 shadow-sm">
-        <div class="fw-bold text-dark">${new Date(r.date_heure).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}</div>
-        <div class="small text-muted">${r.motif} - ${parseFloat(r.tarif).toFixed(2)} €</div>
-      </div>
-    `).join('');
+  // Calcul de l'âge et formatage de la date de naissance
+  let ageStr = 'Âge non renseigné';
+  let dobStr = 'Non renseignée';
+  if (patient.date_naissance) {
+    const dob = new Date(patient.date_naissance);
+    dobStr = dob.toLocaleDateString('fr-FR');
+    const age = Math.floor((now - dob) / (365.25 * 24 * 60 * 60 * 1000));
+    ageStr = `${age} ans`;
   }
 
-  // Affichage historique
-  const historyDiv = document.getElementById('detail-rdv-historique');
-  if (history.length === 0) {
-    historyDiv.innerHTML = '<p class="text-muted small">Aucun historique disponible.</p>';
-  } else {
-    historyDiv.innerHTML = history.map(r => `
-      <div class="p-2 mb-2 bg-light rounded border">
-        <div class="d-flex justify-content-between">
-          <span class="fw-bold small">${new Date(r.date_heure).toLocaleDateString('fr-FR')}</span>
-          <span class="badge ${r.statut_paiement === 'Réglé' ? 'bg-success' : 'bg-warning text-dark'}">${r.statut_paiement}</span>
+  // Recherche du prochain rendez-vous (le premier RDV à venir)
+  const upcomingRdvs = patientRdvs
+    .filter(r => new Date(r.date_heure) >= now)
+    .sort((a, b) => new Date(a.date_heure) - new Date(b.date_heure));
+  
+  const nextRdv = upcomingRdvs.length > 0 ? upcomingRdvs[0] : null;
+
+  // Construction dynamique du HTML de la fiche
+  const modalContentHtml = `
+    <div class="modal-header bg-primary text-white">
+      <h5 class="modal-title fw-bold">
+        <i class="bi bi-person-vcard me-2"></i>Fiche Patient : ${patient.nom.toUpperCase()} ${patient.prenom}
+      </h5>
+      <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fermer"></button>
+    </div>
+    
+    <div class="modal-body p-4">
+      <!-- 1. COORDONNÉES ET ÉTAT CIVIL -->
+      <div class="card mb-4 border-0 shadow-sm bg-light">
+        <div class="card-body">
+          <h6 class="text-uppercase text-primary fw-bold mb-3"><i class="bi bi-person-badge me-2"></i>Coordonnées & Informations</h6>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <p class="mb-2"><strong><i class="bi bi-cake2 text-secondary me-2"></i>Âge & Date de naissance :</strong> ${ageStr} (${dobStr})</p>
+              <p class="mb-2"><strong><i class="bi bi-telephone text-secondary me-2"></i>Téléphone :</strong> ${patient.telephone || '<span class="text-muted">Non renseigné</span>'}</p>
+            </div>
+            <div class="col-md-6">
+              <p class="mb-2"><strong><i class="bi bi-envelope text-secondary me-2"></i>Email :</strong> ${patient.email || '<span class="text-muted">Non renseigné</span>'}</p>
+              <p class="mb-2"><strong><i class="bi bi-geo-alt text-secondary me-2"></i>Adresse :</strong> ${patient.adresse || '<span class="text-muted">Non renseignée</span>'}</p>
+            </div>
+          </div>
         </div>
-        <div class="small text-dark fw-bold mt-1">${r.motif} (${parseFloat(r.tarif).toFixed(2)} €)</div>
-        ${r.resume ? `<div class="extra-small text-muted fst-italic mt-1">${r.resume}</div>` : ''}
       </div>
-    `).join('');
+
+      <!-- 2. PROCHAIN RENDEZ-VOUS -->
+      <div class="card mb-4 border-primary border-2 shadow-sm">
+        <div class="card-body bg-primary bg-opacity-10">
+          <h6 class="text-uppercase text-primary fw-bold mb-2"><i class="bi bi-calendar-check me-2"></i>Prochain Rendez-vous</h6>
+          ${nextRdv ? `
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+              <div>
+                <span class="fs-5 fw-bold text-dark me-3"><i class="bi bi-clock me-1"></i>${new Date(nextRdv.date_heure).toLocaleString('fr-FR', { dateStyle: 'full', timeStyle: 'short' })}</span>
+                <span class="badge bg-primary fs-6">${nextRdv.motif || 'Consultation'}</span>
+              </div>
+              <div class="fw-bold fs-5 text-success">${parseFloat(nextRdv.tarif || 0).toFixed(2)} €</div>
+            </div>
+          ` : `
+            <p class="text-muted mb-0 fst-italic">Aucun rendez-vous à venir programmé.</p>
+          `}
+        </div>
+      </div>
+
+      <!-- 3. RÉCAPITULATIF DES SÉANCES -->
+      <h6 class="text-uppercase text-muted fw-bold mb-3"><i class="bi bi-journal-text me-2"></i>Historique des Séances (${patientRdvs.length})</h6>
+
+      ${patientRdvs.length === 0 ? `
+        <div class="alert alert-secondary text-center py-3">Aucune séance enregistrée pour ce patient.</div>
+      ` : `
+        <div class="table-responsive">
+          <table class="table table-hover align-middle border">
+            <thead class="table-dark">
+              <tr>
+                <th>Date & Heure</th>
+                <th>Motif</th>
+                <th>Résumé / Bilan</th>
+                <th>Montant</th>
+                <th>Paiement</th>
+                <th>Statut</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${patientRdvs.map(r => {
+                const dateFormatted = new Date(r.date_heure).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' });
+                const isPaye = r.statut_paiement === 'Réglé';
+                return `
+                  <tr>
+                    <td class="fw-bold">${dateFormatted}</td>
+                    <td><span class="badge bg-secondary">${r.motif || '-'}</span></td>
+                    <td style="min-width: 200px;">
+                      <small class="text-wrap">${r.resume || '<span class="text-muted fst-italic">Aucun résumé</span>'}</small>
+                    </td>
+                    <td class="fw-bold">${parseFloat(r.tarif || 0).toFixed(2)} €</td>
+                    <td><small class="text-muted">${r.mode_paiement || 'Espèces'}</small></td>
+                    <td>
+                      <span class="badge ${isPaye ? 'bg-success' : 'bg-warning text-dark'}">
+                        ${r.statut_paiement || 'En attente'}
+                      </span>
+                    </td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      `}
+    </div>
+
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+    </div>
+  `;
+
+  // Injection du HTML dans la modale
+  const modalEl = document.getElementById('patientDetailModal');
+  const modalContentEl = modalEl.querySelector('.modal-content');
+  if (modalContentEl) {
+    modalContentEl.innerHTML = modalContentHtml;
   }
 
-  new bootstrap.Modal(document.getElementById('patientDetailModal')).show();
+  // Affichage de la modale
+  const bsModal = bootstrap.Modal.getOrCreateInstance(modalEl);
+  bsModal.show();
 }
 
 // ==========================================
