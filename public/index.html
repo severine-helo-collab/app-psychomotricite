@@ -257,71 +257,88 @@
 
   <!-- MODAL : FICHE DÉTAILLÉE PATIENT -->
   <div class="modal fade" id="patientDetailModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
       <div class="modal-content border-0 shadow-lg">
-        <div class="modal-header bg-primary text-white">
-          <h5 class="modal-header-title mb-0 fw-bold"><i class="bi bi-person-lines-fill me-2"></i>Fiche Patient</h5>
+        
+        <!-- En-tête du Modal -->
+        <div class="modal-header bg-primary text-white p-3">
+          <h5 class="modal-title fw-bold" id="detail-patient-titre">
+            <i class="bi bi-person-vcard me-2"></i>Fiche Patient
+          </h5>
           <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fermer"></button>
         </div>
-        <div class="modal-body p-4">
+
+        <div class="modal-body p-4 bg-light">
           
-          <!-- Infos personnelles -->
-          <div class="row mb-4 pb-3 border-bottom">
-            <div class="col-md-6">
-              <h4 class="fw-bold text-primary mb-1" id="detail-patient-nom">-</h4>
-              <p class="text-muted small mb-1"><i class="bi bi-cake2 me-2"></i>Né(e) le : <strong id="detail-patient-dob">-</strong> (<span id="detail-patient-age">-</span>)</p>
-            </div>
-            <div class="col-md-6 text-md-end">
-              <p class="mb-1"><i class="bi bi-telephone me-2 text-primary"></i><span id="detail-patient-tel">-</span></p>
-              <p class="mb-0"><i class="bi bi-envelope me-2 text-primary"></i><span id="detail-patient-email">-</span></p>
-            </div>
-          </div>
-
-          <!-- CARTES FINANCIAL KPI (BILAN FINANCIER PATIENT) -->
-          <h6 class="fw-bold text-uppercase text-muted small mb-3">Bilan Financier & Historique</h6>
-          <div class="row g-2 mb-4">
-            <div class="col-6 col-md-3">
-              <div class="p-2 bg-light rounded text-center border">
-                <span class="d-block text-muted extra-small">Séances</span>
-                <strong class="fs-5 text-dark" id="detail-fin-nb-seances">0</strong>
-              </div>
-            </div>
-            <div class="col-6 col-md-3">
-              <div class="p-2 bg-light rounded text-center border">
-                <span class="d-block text-muted extra-small">Honoraires</span>
-                <strong class="fs-5 text-primary" id="detail-fin-total-genere">0.00 €</strong>
-              </div>
-            </div>
-            <div class="col-6 col-md-3">
-              <div class="p-2 bg-light rounded text-center border">
-                <span class="d-block text-muted extra-small">Réglé</span>
-                <strong class="fs-5 text-success" id="detail-fin-total-paye">0.00 €</strong>
-              </div>
-            </div>
-            <div class="col-6 col-md-3">
-              <div class="p-2 bg-light rounded text-center border">
-                <span class="d-block text-muted extra-small">Reste à encaisser</span>
-                <strong class="fs-5 text-danger" id="detail-fin-total-attente">0.00 €</strong>
+          <!-- 1. CARTE COORDONNÉES & INFOS PERSONNELLES -->
+          <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body p-4">
+              <div class="row align-items-center">
+                <div class="col-md-7 border-end-md">
+                  <h3 class="fw-bold text-primary mb-2" id="detail-patient-nom-complet">-</h3>
+                  <p class="mb-2">
+                    <i class="bi bi-cake2 text-danger me-2"></i><strong>Né(e) le :</strong> 
+                    <span id="detail-patient-dob">-</span> 
+                    <span class="badge bg-secondary ms-2" id="detail-patient-age">-</span>
+                  </p>
+                  <p class="mb-0 text-muted">
+                    <i class="bi bi-geo-alt text-primary me-2"></i><strong>Adresse :</strong> 
+                    <span id="detail-patient-adresse">-</span>
+                  </p>
+                </div>
+                <div class="col-md-5 mt-3 mt-md-0 ps-md-4">
+                  <div class="p-2">
+                    <p class="mb-2">
+                      <i class="bi bi-telephone-fill text-success me-2"></i><strong>Téléphone :</strong> 
+                      <span id="detail-patient-tel">-</span>
+                    </p>
+                    <p class="mb-0">
+                      <i class="bi bi-envelope-fill text-warning me-2"></i><strong>Email :</strong> 
+                      <span id="detail-patient-email">-</span>
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
 
-          <!-- Séances à venir & Historique -->
-          <div class="row g-3">
-            <div class="col-md-6">
-              <h6 class="fw-bold text-primary mb-2"><i class="bi bi-calendar-event me-2"></i>Prochaine(s) Séance(s)</h6>
-              <div id="detail-rdv-a-venir">
-                <p class="text-muted small">Aucune séance programmée.</p>
-              </div>
+          <!-- 2. BLOC PROCHAIN RENDEZ-VOUS -->
+          <div class="card border-0 shadow-sm mb-4 border-start border-4 border-primary">
+            <div class="card-header bg-white py-2">
+              <h6 class="fw-bold mb-0 text-primary"><i class="bi bi-calendar-event me-2"></i>Prochain Rendez-vous</h6>
             </div>
-            <div class="col-md-6">
-              <h6 class="fw-bold text-success mb-2"><i class="bi bi-clock-history me-2"></i>Historique des Séances</h6>
-              <div id="detail-rdv-historique" style="max-height: 250px; overflow-y: auto;">
-                <p class="text-muted small">Aucun historique disponible.</p>
-              </div>
+            <div class="card-body py-3" id="detail-prochain-rdv-container">
+              <p class="text-muted small mb-0">Chargement...</p>
             </div>
           </div>
 
+          <!-- 3. TABLEAU DES SÉANCES (HISTORIQUE ET DÉTAILS) -->
+          <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+              <h6 class="fw-bold mb-0 text-dark"><i class="bi bi-journal-medical me-2 text-success"></i>Récapitulatif des Séances</h6>
+              <span class="badge bg-primary rounded-pill" id="detail-nb-seances-badge">0 séance(s)</span>
+            </div>
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th style="width: 15%;">Date & Heure</th>
+                    <th style="width: 20%;">Motif</th>
+                    <th style="width: 35%;">Résumé / Notes de séance</th>
+                    <th style="width: 12%;">Montant</th>
+                    <th style="width: 18%;">Paiement</th>
+                  </tr>
+                </thead>
+                <tbody id="detail-seances-table-body">
+                  <tr><td colspan="5" class="text-center text-muted py-3">Chargement des séances...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+        <div class="modal-footer bg-white">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
         </div>
       </div>
     </div>
