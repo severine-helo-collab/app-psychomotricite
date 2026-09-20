@@ -1,11 +1,11 @@
 // ==========================================
 // 1. CONFIGURATION SUPABASE ET SÉCURITÉ
 // ==========================================
-var SUPABASE_URL = SUPABASE_URL || 'https://iyxurkbceiirjdigcyak.supabase.co';
-var SUPABASE_ANON_KEY = SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml5eHVya2JjZWlpcmpkaWdjeWFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkwNDYzODQsImV4cCI6MjEwNDYyMjM4NH0.MGBADlkxP307mbUvU_07OEhN5sfqv9_wSTqIP5AVK-s';
+const SUPABASE_URL = 'https://iyxurkbceiirjdigcyak.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml5eHVya2JjZWlpcmpkaWdjeWFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkwNDYzODQsImV4cCI6MjEwNDYyMjM4NH0.MGBADlkxP307mbUvU_07OEhN5sfqv9_wSTqIP5AVK-sN';
 
-// Client Supabase
-const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// Initialisation du client Supabase
+const supabaseClient = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
 // Variables globales d'état
 let currentUser = null;
@@ -112,6 +112,7 @@ function initEventListeners() {
 // 3. GESTION DE LA SESSION & NAVIGATION
 // ==========================================
 async function checkSession() {
+  if (!supabaseClient) return;
   const { data: { session } } = await supabaseClient.auth.getSession();
   const authSection = document.getElementById('auth-section');
   const appSection = document.getElementById('app-section');
@@ -284,26 +285,17 @@ async function deletePatient(id) {
 // 6. FICHE DÉTAILLÉE DU PATIENT (MODAL OEIL)
 // ==========================================
 function openPatientDetail(patientId) {
-  console.log("Clic détecté pour l'ID patient :", patientId);
-  
   const patient = patientsData.find(p => p.id === patientId);
   if (!patient) {
-    console.error("Patient non trouvé dans patientsData pour l'ID :", patientId);
     alert("Erreur : Patient non trouvé.");
     return;
   }
-  
+
   const modalEl = document.getElementById('patientDetailModal');
   if (!modalEl) {
-    console.error("Élément #patientDetailModal introuvable dans le HTML !");
     alert("Erreur : La modale #patientDetailModal manque dans le fichier HTML.");
     return;
   }
-
-  // ... (suite du code de la fonction)
-function openPatientDetail(patientId) {
-  const patient = patientsData.find(p => p.id === patientId);
-  if (!patient) return;
 
   const now = new Date();
 
@@ -423,9 +415,6 @@ function openPatientDetail(patientId) {
       <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
     </div>
   `;
-
-  const modalEl = document.getElementById('patientDetailModal');
-  if (!modalEl) return;
 
   const modalContentEl = modalEl.querySelector('.modal-content');
   if (modalContentEl) {
