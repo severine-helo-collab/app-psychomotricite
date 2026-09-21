@@ -84,13 +84,26 @@ function initEvents() {
 // AUTHENTIFICATION & NAVIGATION
 // ==========================================
 async function checkAuth() {
-  const { data: { session } } = await supabaseClient.auth.getSession();
+  const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
+  
+  if (sessionError) {
+    console.error("Erreur de session :", sessionError);
+    return;
+  }
+
   if (session) {
     currentUser = session.user;
     document.getElementById('auth-section').style.display = 'none';
     document.getElementById('app-section').style.display = 'block';
     document.getElementById('user-email-display').textContent = currentUser.email;
-    await loadData();
+
+    // Charger les données avec capture des erreurs Supabase
+    try {
+      await loadData();
+    } catch (err) {
+      console.error("Erreur lors du chargement des données :", err);
+      alert("Connexion réussie, mais impossible de charger les données : " + err.message);
+    }
   } else {
     currentUser = null;
     document.getElementById('auth-section').style.display = 'flex';
