@@ -92,7 +92,7 @@ function initEventListeners() {
   addListenerIfExists('card-stat-rdv', 'click', () => switchTab('rendezvous'));
   addListenerIfExists('card-stat-finance', 'click', () => switchTab('finance'));
 
-  // Recherche patient
+  // RECHERCHE PATIENT
   addListenerIfExists('searchPatient', 'input', (e) => {
     const term = e.target.value.toLowerCase().trim();
     const filtered = patientsData.filter(p => 
@@ -102,7 +102,20 @@ function initEventListeners() {
     renderPatientsTable(filtered);
   });
 
-  // Formulaires Modals
+  // DÉCLENCHEMENT MANUEL BOUTON NOUVEAU PATIENT (Secours JS si l'attribut HTML manque)
+  const openPatientModalBtn = document.getElementById('btn-open-add-patient') || document.querySelector('[data-bs-target="#addPatientModal"]');
+  if (openPatientModalBtn) {
+    openPatientModalBtn.addEventListener('click', () => {
+      const modalEl = document.getElementById('addPatientModal');
+      if (modalEl) {
+        bootstrap.Modal.getOrCreateInstance(modalEl).show();
+      } else {
+        alert("❌ Erreur : La modale avec id='addPatientModal' est introuvable dans le HTML.");
+      }
+    });
+  }
+
+  // FORMULAIRES MODALS
   addListenerIfExists('add-patient-form', 'submit', handleAddPatient);
   addListenerIfExists('edit-patient-form', 'submit', handleEditPatient);
   addListenerIfExists('add-rdv-form', 'submit', handleAddRendezvous);
@@ -212,14 +225,13 @@ function renderPatientsTable(patients) {
   `).join('');
 }
 
-// CORRECTION : Récupération sécurisée de la session avant l'insertion
 async function handleAddPatient(e) {
   e.preventDefault();
 
   const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
 
   if (sessionError || !session) {
-    alert("❌ Session expirée ou invalide. Déconnectez-vous et reconnectez-vous.");
+    alert("❌ Session expirée ou non connectée. Déconnectez-vous puis reconnectez-vous.");
     return;
   }
 
@@ -240,7 +252,10 @@ async function handleAddPatient(e) {
     alert("❌ Impossible de créer le patient : " + error.message);
   } else {
     const modalEl = document.getElementById('addPatientModal');
-    if (modalEl) bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+    if (modalEl) {
+      const modalInstance = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+      modalInstance.hide();
+    }
     document.getElementById('add-patient-form').reset();
     await loadAllData();
   }
@@ -310,12 +325,10 @@ function openPatientDetail(patientId) {
 
   const now = new Date();
 
-  // Tous les RDV de ce patient (du plus récent au plus ancien)
   const patientRdvs = rdvData
     .filter(r => r.patient_id === patientId)
     .sort((a, b) => new Date(b.date_heure) - new Date(a.date_heure));
 
-  // Calcul de l'âge et formatage de la date de naissance
   let ageStr = 'Âge non renseigné';
   let dobStr = 'Non renseignée';
   if (patient.date_naissance) {
@@ -325,14 +338,12 @@ function openPatientDetail(patientId) {
     ageStr = `${age} ans`;
   }
 
-  // Recherche du prochain rendez-vous
   const upcomingRdvs = patientRdvs
     .filter(r => new Date(r.date_heure) >= now)
     .sort((a, b) => new Date(a.date_heure) - new Date(b.date_heure));
   
   const nextRdv = upcomingRdvs.length > 0 ? upcomingRdvs[0] : null;
 
-  // Construction dynamique du HTML de la fiche
   const modalContentHtml = `
     <div class="modal-header bg-primary text-white">
       <h5 class="modal-title fw-bold">
@@ -342,7 +353,6 @@ function openPatientDetail(patientId) {
     </div>
     
     <div class="modal-body p-4">
-      <!-- 1. COORDONNÉES ET ÉTAT CIVIL -->
       <div class="card mb-4 border-0 shadow-sm bg-light">
         <div class="card-body">
           <h6 class="text-uppercase text-primary fw-bold mb-3"><i class="bi bi-person-badge me-2"></i>Coordonnées & Informations</h6>
@@ -359,7 +369,6 @@ function openPatientDetail(patientId) {
         </div>
       </div>
 
-      <!-- 2. PROCHAIN RENDEZ-VOUS -->
       <div class="card mb-4 border-primary border-2 shadow-sm">
         <div class="card-body bg-primary bg-opacity-10">
           <h6 class="text-uppercase text-primary fw-bold mb-2"><i class="bi bi-calendar-check me-2"></i>Prochain Rendez-vous</h6>
@@ -377,7 +386,6 @@ function openPatientDetail(patientId) {
         </div>
       </div>
 
-      <!-- 3. RÉCAPITULATIF DES SÉANCES -->
       <h6 class="text-uppercase text-muted fw-bold mb-3"><i class="bi bi-journal-text me-2"></i>Historique des Séances (${patientRdvs.length})</h6>
 
       ${patientRdvs.length === 0 ? `
@@ -428,12 +436,9 @@ function openPatientDetail(patientId) {
   `;
 
   const modalContentEl = modalEl.querySelector('.modal-content');
-  if (modalContentEl) {
-    modalContentEl.innerHTML = modalContentHtml;
-  }
+  if (modalContentEl) modalContentEl.innerHTML = modalContentHtml;
 
-  const bsModal = bootstrap.Modal.getOrCreateInstance(modalEl);
-  bsModal.show();
+  bootstrap.Modal.getOrCreateInstance(modalEl).show();
 }
 
 // ==========================================
@@ -480,14 +485,13 @@ function renderRdvTable(rdvs) {
   }).join('');
 }
 
-// CORRECTION : Récupération sécurisée de la session pour la création de rendez-vous
 async function handleAddRendezvous(e) {
   e.preventDefault();
 
   const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
 
   if (sessionError || !session) {
-    alert("❌ Session expirée ou invalide. Déconnectez-vous et reconnectez-vous.");
+    alert("❌ Session expirée ou non connectée.");
     return;
   }
 
@@ -537,7 +541,6 @@ function updateDashboard() {
 
   const now = new Date();
 
-  // RDV du jour en date locale
   const rdvToday = rdvData.filter(r => {
     if (!r.date_heure) return false;
     const d = new Date(r.date_heure);
@@ -551,7 +554,6 @@ function updateDashboard() {
   if (statRdvToday) statRdvToday.textContent = rdvToday.length;
   if (statRdvTotal) statRdvTotal.textContent = rdvData.length;
 
-  // Calcul CA du mois courant
   const currentMonth = now.getMonth();
   const currentYear = now.getFullYear();
 
@@ -564,7 +566,6 @@ function updateDashboard() {
   const statCaMois = document.getElementById('stat-ca-mois');
   if (statCaMois) statCaMois.textContent = `${caMois.toFixed(2)} €`;
 
-  // Prochains RDV sur le tableau de bord
   const upcomingRdvs = rdvData
     .filter(r => new Date(r.date_heure) >= now)
     .sort((a, b) => new Date(a.date_heure) - new Date(b.date_heure))
@@ -614,7 +615,6 @@ function renderFinanceTable() {
     `;
   }).join('');
 
-  // Total encaissé global
   const totalEncaisse = rdvData.filter(r => r.statut_paiement === 'Réglé').reduce((acc, r) => acc + (parseFloat(r.tarif) || 0), 0);
   const financeTotalEl = document.getElementById('finance-total-mois');
   if (financeTotalEl) financeTotalEl.textContent = `${totalEncaisse.toFixed(2)} €`;
