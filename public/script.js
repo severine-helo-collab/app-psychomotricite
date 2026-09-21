@@ -1,11 +1,10 @@
 // ==========================================
-// 1. CONFIGURATION SUPABASE ET SÉCURITÉ
+// 1. CONFIGURATION SUPABASE
 // ==========================================
-// ⚠️ Conservez votre clé réelle dans votre projet local uniquement
 const SUPABASE_URL = 'https://iyxurkbceiirjdigcyak.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml5eHVya2JjZWlpcmpkaWdjeWFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkwNDYzODQsImV4cCI6MjEwNDYyMjM4NH0.MGBADlkxP307mbUvU_07OEhN5sfqv9_wSTqIP5AVK-s';
 
-// Initialisation unique du client Supabase
+// Initialisation du client Supabase
 const supabaseClient = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
 // Variables globales d'état
@@ -14,7 +13,7 @@ let isSignUpMode = false;
 let patientsData = [];
 let rdvData = [];
 
-// Fonction utilitaire de protection XSS
+// Fonction de protection contre les injections XSS
 function escapeHtml(str) {
   if (str === null || str === undefined) return '';
   return String(str)
@@ -25,7 +24,7 @@ function escapeHtml(str) {
     .replace(/'/g, '&#039;');
 }
 
-// Fonction utilitaire pour attacher un événement de manière sécurisée
+// Utilitaire pour attacher un événement en toute sécurité
 function addListenerIfExists(id, event, handler) {
   const el = document.getElementById(id);
   if (el) el.addEventListener(event, handler);
@@ -35,6 +34,10 @@ function addListenerIfExists(id, event, handler) {
 // 2. INITIALISATION ET ÉVÉNEMENTS
 // ==========================================
 document.addEventListener('DOMContentLoaded', () => {
+  if (!supabaseClient) {
+    console.error("❌ Erreur : Le SDK Supabase n'est pas chargé sur la page.");
+    return;
+  }
   checkSession();
   initEventListeners();
 });
@@ -62,24 +65,24 @@ function initEventListeners() {
   // Soumission Authentification
   addListenerIfExists('auth-form', 'submit', async (e) => {
     e.preventDefault();
-    const email = document.getElementById('auth-email').value;
+    const email = document.getElementById('auth-email').value.trim();
     const password = document.getElementById('auth-password').value;
 
     if (isSignUpMode) {
       const { error } = await supabaseClient.auth.signUp({ email, password });
       if (error) alert("Erreur d'inscription : " + error.message);
-      else alert("Compte créé avec succès ! Vous pouvez vous connecter.");
+      else alert("Compte créé avec succès ! Vérifiez votre boîte mail pour confirmer.");
     } else {
       const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
       if (error) alert("Erreur de connexion : " + error.message);
-      else checkSession();
+      else await checkSession();
     }
   });
 
   // Déconnexion
   addListenerIfExists('btn-logout', 'click', async () => {
     await supabaseClient.auth.signOut();
-    checkSession();
+    await checkSession();
   });
 
   // Navigation principale
@@ -93,7 +96,7 @@ function initEventListeners() {
   addListenerIfExists('card-stat-rdv', 'click', () => switchTab('rendezvous'));
   addListenerIfExists('card-stat-finance', 'click', () => switchTab('finance'));
 
-  // RECHERCHE PATIENT (Nom + Prénom combinés)
+  // Recherche patient (nom + prénom combinés)
   addListenerIfExists('searchPatient', 'input', (e) => {
     const term = e.target.value.toLowerCase().trim();
     const filtered = patientsData.filter(p => {
@@ -103,27 +106,23 @@ function initEventListeners() {
     renderPatientsTable(filtered);
   });
 
-  // BOUTON NOUVEAU PATIENT
+  // Ouverture modale nouveau patient
   const openPatientModalBtn = document.getElementById('btn-open-add-patient') || document.querySelector('[data-bs-target="#addPatientModal"]');
   if (openPatientModalBtn) {
     openPatientModalBtn.addEventListener('click', () => {
       const modalEl = document.getElementById('addPatientModal');
-      if (modalEl) {
-        bootstrap.Modal.getOrCreateInstance(modalEl).show();
-      } else {
-        alert("❌ Erreur : La modale avec id='addPatientModal' est introuvable.");
-      }
+      if (modalEl) bootstrap.Modal.getOrCreateInstance(modalEl).show();
     });
   }
 
-  // FORMULAIRES MODALS
+  // Soumissions formulaires
   addListenerIfExists('add-patient-form', 'submit', handleAddPatient);
   addListenerIfExists('edit-patient-form', 'submit', handleEditPatient);
   addListenerIfExists('add-rdv-form', 'submit', handleAddRendezvous);
 }
 
 // ==========================================
-// 3. GESTION DE LA SESSION & NAVIGATION
+// 3. GESTION DE SESSION & NAVIGATION
 // ==========================================
 async function checkSession() {
   if (!supabaseClient) return;
@@ -199,7 +198,7 @@ async function fetchRendezvous() {
 }
 
 // ==========================================
-// 5. AFFICHAGE ET LOGIQUE DES PATIENTS
+// 5. GESTION ET AFFICHAGE DES PATIENTS
 // ==========================================
 function renderPatientsTable(patients) {
   const tbody = document.getElementById('patients-table-body');
@@ -229,15 +228,13 @@ function renderPatientsTable(patients) {
 async function handleAddPatient(e) {
   e.preventDefault();
 
-  const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
-
-  if (sessionError || !session) {
-    alert("❌ Session expirée ou non connectée. Déconnectez-vous puis reconnectez-vous.");
+  if (!currentUser) {
+    alert("❌ Session expirée ou non connectée.");
     return;
   }
 
   const newPatient = {
-    user_id: session.user.id,
+    user_id: currentUser.id,
     nom: document.getElementById('nom').value.trim(),
     prenom: document.getElementById('prenom').value.trim(),
     date_naissance: document.getElementById('date_naissance').value || null,
@@ -253,9 +250,7 @@ async function handleAddPatient(e) {
     alert("❌ Impossible de créer le patient : " + error.message);
   } else {
     const modalEl = document.getElementById('addPatientModal');
-    if (modalEl) {
-      bootstrap.Modal.getInstance(modalEl)?.hide();
-    }
+    if (modalEl) bootstrap.Modal.getInstance(modalEl)?.hide();
     document.getElementById('add-patient-form').reset();
     await loadAllData();
   }
@@ -294,7 +289,7 @@ async function handleEditPatient(e) {
     alert("Erreur de modification : " + error.message);
   } else {
     const modalEl = document.getElementById('editPatientModal');
-    if (modalEl) bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+    if (modalEl) bootstrap.Modal.getInstance(modalEl)?.hide();
     await loadAllData();
   }
 }
@@ -308,7 +303,7 @@ async function deletePatient(id) {
 }
 
 // ==========================================
-// 6. FICHE DÉTAILLÉE DU PATIENT (MODAL OEIL)
+// 6. FICHE DÉTAILLÉE DU PATIENT
 // ==========================================
 function openPatientDetail(patientId) {
   const patient = patientsData.find(p => p.id === patientId);
@@ -319,7 +314,7 @@ function openPatientDetail(patientId) {
 
   const modalEl = document.getElementById('patientDetailModal');
   if (!modalEl) {
-    alert("Erreur : La modale #patientDetailModal manque dans le fichier HTML.");
+    alert("Erreur : La modale #patientDetailModal manque dans votre code HTML.");
     return;
   }
 
@@ -358,12 +353,12 @@ function openPatientDetail(patientId) {
           <h6 class="text-uppercase text-primary fw-bold mb-3"><i class="bi bi-person-badge me-2"></i>Coordonnées & Informations</h6>
           <div class="row g-3">
             <div class="col-md-6">
-              <p class="mb-2"><strong><i class="bi bi-cake2 text-secondary me-2"></i>Âge & Date de naissance :</strong> ${escapeHtml(ageStr)} (${escapeHtml(dobStr)})</p>
-              <p class="mb-2"><strong><i class="bi bi-telephone text-secondary me-2"></i>Téléphone :</strong> ${escapeHtml(patient.telephone) || '<span class="text-muted">Non renseigné</span>'}</p>
+              <p class="mb-2"><strong>Âge & Date de naissance :</strong> ${escapeHtml(ageStr)} (${escapeHtml(dobStr)})</p>
+              <p class="mb-2"><strong>Téléphone :</strong> ${escapeHtml(patient.telephone) || '<span class="text-muted">Non renseigné</span>'}</p>
             </div>
             <div class="col-md-6">
-              <p class="mb-2"><strong><i class="bi bi-envelope text-secondary me-2"></i>Email :</strong> ${escapeHtml(patient.email) || '<span class="text-muted">Non renseigné</span>'}</p>
-              <p class="mb-2"><strong><i class="bi bi-geo-alt text-secondary me-2"></i>Adresse :</strong> ${escapeHtml(patient.adresse) || '<span class="text-muted">Non renseignée</span>'}</p>
+              <p class="mb-2"><strong>Email :</strong> ${escapeHtml(patient.email) || '<span class="text-muted">Non renseigné</span>'}</p>
+              <p class="mb-2"><strong>Adresse :</strong> ${escapeHtml(patient.adresse) || '<span class="text-muted">Non renseignée</span>'}</p>
             </div>
           </div>
         </div>
@@ -375,7 +370,7 @@ function openPatientDetail(patientId) {
           ${nextRdv ? `
             <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
               <div>
-                <span class="fs-5 fw-bold text-dark me-3"><i class="bi bi-clock me-1"></i>${new Date(nextRdv.date_heure).toLocaleString('fr-FR', { dateStyle: 'full', timeStyle: 'short' })}</span>
+                <span class="fs-5 fw-bold text-dark me-3">${new Date(nextRdv.date_heure).toLocaleString('fr-FR', { dateStyle: 'full', timeStyle: 'short' })}</span>
                 <span class="badge bg-primary fs-6">${escapeHtml(nextRdv.motif) || 'Consultation'}</span>
               </div>
               <div class="fw-bold fs-5 text-success">${parseFloat(nextRdv.tarif || 0).toFixed(2)} €</div>
@@ -442,7 +437,7 @@ function openPatientDetail(patientId) {
 }
 
 // ==========================================
-// 7. GESTION DES RENDEZ-VOUS & SÉANCES
+// 7. GESTION DES RENDEZ-VOUS
 // ==========================================
 function populatePatientSelect() {
   const select = document.getElementById('rdv-patient-select');
@@ -488,15 +483,13 @@ function renderRdvTable(rdvs) {
 async function handleAddRendezvous(e) {
   e.preventDefault();
 
-  const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
-
-  if (sessionError || !session) {
+  if (!currentUser) {
     alert("❌ Session expirée ou non connectée.");
     return;
   }
 
   const newRdv = {
-    user_id: session.user.id,
+    user_id: currentUser.id,
     patient_id: document.getElementById('rdv-patient-select').value,
     date_heure: document.getElementById('rdv-date').value,
     motif: document.getElementById('rdv-motif').value.trim(),
@@ -511,7 +504,7 @@ async function handleAddRendezvous(e) {
     alert("❌ Erreur lors de l'ajout du RDV : " + error.message);
   } else {
     const modalEl = document.getElementById('addRendezvousModal');
-    if (modalEl) bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+    if (modalEl) bootstrap.Modal.getInstance(modalEl)?.hide();
     document.getElementById('add-rdv-form').reset();
     await loadAllData();
   }
@@ -533,7 +526,7 @@ async function deleteRendezvous(id) {
 }
 
 // ==========================================
-// 8. TABLEAU DE BORD & COMPTABILITÉ
+// 8. TABLEAU DE BORD & FINANCES
 // ==========================================
 function updateDashboard() {
   const statPatients = document.getElementById('stat-patients-count');
