@@ -212,10 +212,19 @@ function renderPatientsTable(patients) {
   `).join('');
 }
 
+// CORRECTION : Récupération sécurisée de la session avant l'insertion
 async function handleAddPatient(e) {
   e.preventDefault();
+
+  const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
+
+  if (sessionError || !session) {
+    alert("❌ Session expirée ou invalide. Déconnectez-vous et reconnectez-vous.");
+    return;
+  }
+
   const newPatient = {
-    user_id: currentUser.id,
+    user_id: session.user.id,
     nom: document.getElementById('nom').value.trim(),
     prenom: document.getElementById('prenom').value.trim(),
     date_naissance: document.getElementById('date_naissance').value || null,
@@ -224,9 +233,11 @@ async function handleAddPatient(e) {
     adresse: document.getElementById('adresse').value.trim() || null
   };
 
-  const { error } = await supabaseClient.from('patients').insert([newPatient]);
+  const { data, error } = await supabaseClient.from('patients').insert([newPatient]);
+
   if (error) {
-    alert("Erreur lors de l'ajout : " + error.message);
+    console.error("Détails erreur Supabase :", error);
+    alert("❌ Impossible de créer le patient : " + error.message);
   } else {
     const modalEl = document.getElementById('addPatientModal');
     if (modalEl) bootstrap.Modal.getOrCreateInstance(modalEl).hide();
@@ -469,10 +480,19 @@ function renderRdvTable(rdvs) {
   }).join('');
 }
 
+// CORRECTION : Récupération sécurisée de la session pour la création de rendez-vous
 async function handleAddRendezvous(e) {
   e.preventDefault();
+
+  const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
+
+  if (sessionError || !session) {
+    alert("❌ Session expirée ou invalide. Déconnectez-vous et reconnectez-vous.");
+    return;
+  }
+
   const newRdv = {
-    user_id: currentUser.id,
+    user_id: session.user.id,
     patient_id: document.getElementById('rdv-patient-select').value,
     date_heure: document.getElementById('rdv-date').value,
     motif: document.getElementById('rdv-motif').value.trim(),
@@ -484,7 +504,7 @@ async function handleAddRendezvous(e) {
 
   const { error } = await supabaseClient.from('rendezvous').insert([newRdv]);
   if (error) {
-    alert("Erreur lors de l'ajout du RDV : " + error.message);
+    alert("❌ Erreur lors de l'ajout du RDV : " + error.message);
   } else {
     const modalEl = document.getElementById('addRendezvousModal');
     if (modalEl) bootstrap.Modal.getOrCreateInstance(modalEl).hide();
