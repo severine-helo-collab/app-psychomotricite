@@ -4,7 +4,8 @@
 const SUPABASE_URL = 'https://iyxurkbceiirjdigcyak.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml5eHVya2JjZWlpcmpkaWdjeWFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkwNDYzODQsImV4cCI6MjEwNDYyMjM4NH0.MGBADlkxP307mbUvU_07OEhN5sfqv9_wSTqIP5AVK-s';
 
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// ✅ Utilisation d'un nom de variable unique (supabaseClient)
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // ÉTATS
 let currentUser = null;
@@ -22,48 +23,57 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function initEvents() {
   // Mode Auth
-  document.getElementById('toggle-auth-mode').addEventListener('click', (e) => {
-    e.preventDefault();
-    isSignUpMode = !isSignUpMode;
-    document.getElementById('btn-auth-submit').textContent = isSignUpMode ? "S'inscrire" : "Se connecter";
-    document.getElementById('toggle-auth-mode').textContent = isSignUpMode ? "Déjà un compte ? Se connecter" : "Pas encore de compte ? S'inscrire";
-  });
+  const toggleBtn = document.getElementById('toggle-auth-mode');
+  if (toggleBtn) {
+    toggleBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      isSignUpMode = !isSignUpMode;
+      document.getElementById('btn-auth-submit').textContent = isSignUpMode ? "S'inscrire" : "Se connecter";
+      document.getElementById('toggle-auth-mode').textContent = isSignUpMode ? "Déjà un compte ? Se connecter" : "Pas encore de compte ? S'inscrire";
+    });
+  }
 
   // Soumission Auth
-  document.getElementById('auth-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const email = document.getElementById('auth-email').value;
-    const password = document.getElementById('auth-password').value;
+  const authForm = document.getElementById('auth-form');
+  if (authForm) {
+    authForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('auth-email').value;
+      const password = document.getElementById('auth-password').value;
 
-    if (isSignUpMode) {
-      const { error } = await supabaseClient.auth.signUp({ email, password });
-      if (error) alert("Erreur d'inscription : " + error.message);
-      else alert("Inscription réussie !");
-    } else {
-      const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
-      if (error) alert("Erreur de connexion : " + error.message);
-      else checkAuth();
-    }
-  });
+      if (isSignUpMode) {
+        const { error } = await supabaseClient.auth.signUp({ email, password });
+        if (error) alert("Erreur d'inscription : " + error.message);
+        else alert("Inscription réussie !");
+      } else {
+        const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+        if (error) alert("Erreur de connexion : " + error.message);
+        else checkAuth();
+      }
+    });
+  }
 
   // Déconnexion
-  document.getElementById('btn-logout').addEventListener('click', async () => {
-    await supabaseClient.auth.signOut();
-    checkAuth();
-  });
+  const logoutBtn = document.getElementById('btn-logout');
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', async () => {
+      await supabaseClient.auth.signOut();
+      checkAuth();
+    });
+  }
 
   // Navigation
-  document.getElementById('nav-dashboard').addEventListener('click', () => switchTab('dashboard'));
-  document.getElementById('nav-patients').addEventListener('click', () => switchTab('patients'));
-  document.getElementById('nav-compta').addEventListener('click', () => switchTab('compta'));
-  document.getElementById('btn-nav-to-patients').addEventListener('click', () => switchTab('patients'));
+  document.getElementById('nav-dashboard')?.addEventListener('click', () => switchTab('dashboard'));
+  document.getElementById('nav-patients')?.addEventListener('click', () => switchTab('patients'));
+  document.getElementById('nav-compta')?.addEventListener('click', () => switchTab('compta'));
+  document.getElementById('btn-nav-to-patients')?.addEventListener('click', () => switchTab('patients'));
 
   // Formulaires Modales
-  document.getElementById('form-add-patient').addEventListener('submit', handleAddPatient);
-  document.getElementById('form-add-rdv').addEventListener('submit', handleAddRdv);
+  document.getElementById('form-add-patient')?.addEventListener('submit', handleAddPatient);
+  document.getElementById('form-add-rdv')?.addEventListener('submit', handleAddRdv);
 
   // Recherche
-  document.getElementById('search-patient-input').addEventListener('input', (e) => {
+  document.getElementById('search-patient-input')?.addEventListener('input', (e) => {
     const term = e.target.value.toLowerCase();
     const filtered = patients.filter(p => `${p.nom} ${p.prenom}`.toLowerCase().includes(term));
     renderPatientsList(filtered);
@@ -90,8 +100,10 @@ async function checkAuth() {
 
 function switchTab(tabName) {
   ['dashboard', 'patients', 'compta'].forEach(t => {
-    document.getElementById(`view-${t}`).style.display = t === tabName ? 'block' : 'none';
-    document.getElementById(`nav-${t}`).classList.toggle('active', t === tabName);
+    const viewEl = document.getElementById(`view-${t}`);
+    const navEl = document.getElementById(`nav-${t}`);
+    if (viewEl) viewEl.style.display = t === tabName ? 'block' : 'none';
+    if (navEl) navEl.classList.toggle('active', t === tabName);
   });
 }
 
@@ -115,8 +127,9 @@ async function loadData() {
 
 function renderDashboard() {
   const tbody = document.getElementById('today-rdv-tbody');
-  const todayStr = new Date().toISOString().split('T')[0];
+  if (!tbody) return;
 
+  const todayStr = new Date().toISOString().split('T')[0];
   const todayRdvs = rendezvous.filter(r => r.date_heure && r.date_heure.startsWith(todayStr));
 
   if (todayRdvs.length === 0) {
@@ -139,6 +152,8 @@ function renderDashboard() {
 
 function renderPatientsList(list) {
   const tbody = document.getElementById('patients-list-tbody');
+  if (!tbody) return;
+
   if (list.length === 0) {
     tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3">Aucun patient.</td></tr>';
     return;
@@ -160,6 +175,8 @@ function renderPatientsList(list) {
 
 function renderCompta() {
   const tbody = document.getElementById('compta-tbody');
+  if (!tbody) return;
+
   if (rendezvous.length === 0) {
     tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">Aucune donnée comptable.</td></tr>';
     return;
@@ -178,6 +195,8 @@ function renderCompta() {
 
 function updateSelectPatients() {
   const select = document.getElementById('rdv-patient-id');
+  if (!select) return;
+
   select.innerHTML = '<option value="">-- Choisir un patient --</option>' +
     patients.map(p => `<option value="${p.id}">${p.nom.toUpperCase()} ${p.prenom}</option>`).join('');
 }
