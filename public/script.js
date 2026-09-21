@@ -1,9 +1,10 @@
 // ==========================================
 // 1. CONFIGURATION SUPABASE ET SÉCURITÉ
 // ==========================================
+// ⚠️ Conservez votre clé réelle dans votre projet local uniquement
 const SUPABASE_URL = 'https://iyxurkbceiirjdigcyak.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml5eHVya2JjZWlpcmpkaWdjeWFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkwNDYzODQsImV4cCI6MjEwNDYyMjM4NH0.MGBADlkxP307mbUvU_07OEhN5sfqv9_wSTqIP5AVK-s';
- 
+
 // Initialisation unique du client Supabase
 const supabaseClient = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
@@ -65,11 +66,11 @@ function initEventListeners() {
     const password = document.getElementById('auth-password').value;
 
     if (isSignUpMode) {
-      const { data, error } = await supabaseClient.auth.signUp({ email, password });
+      const { error } = await supabaseClient.auth.signUp({ email, password });
       if (error) alert("Erreur d'inscription : " + error.message);
       else alert("Compte créé avec succès ! Vous pouvez vous connecter.");
     } else {
-      const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+      const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
       if (error) alert("Erreur de connexion : " + error.message);
       else checkSession();
     }
@@ -92,17 +93,17 @@ function initEventListeners() {
   addListenerIfExists('card-stat-rdv', 'click', () => switchTab('rendezvous'));
   addListenerIfExists('card-stat-finance', 'click', () => switchTab('finance'));
 
-  // RECHERCHE PATIENT
+  // RECHERCHE PATIENT (Nom + Prénom combinés)
   addListenerIfExists('searchPatient', 'input', (e) => {
     const term = e.target.value.toLowerCase().trim();
-    const filtered = patientsData.filter(p => 
-      (p.nom && p.nom.toLowerCase().includes(term)) || 
-      (p.prenom && p.prenom.toLowerCase().includes(term))
-    );
+    const filtered = patientsData.filter(p => {
+      const fullName = `${p.nom || ''} ${p.prenom || ''}`.toLowerCase();
+      return fullName.includes(term);
+    });
     renderPatientsTable(filtered);
   });
 
-  // DÉCLENCHEMENT MANUEL BOUTON NOUVEAU PATIENT (Secours JS si l'attribut HTML manque)
+  // BOUTON NOUVEAU PATIENT
   const openPatientModalBtn = document.getElementById('btn-open-add-patient') || document.querySelector('[data-bs-target="#addPatientModal"]');
   if (openPatientModalBtn) {
     openPatientModalBtn.addEventListener('click', () => {
@@ -110,7 +111,7 @@ function initEventListeners() {
       if (modalEl) {
         bootstrap.Modal.getOrCreateInstance(modalEl).show();
       } else {
-        alert("❌ Erreur : La modale avec id='addPatientModal' est introuvable dans le HTML.");
+        alert("❌ Erreur : La modale avec id='addPatientModal' est introuvable.");
       }
     });
   }
@@ -245,7 +246,7 @@ async function handleAddPatient(e) {
     adresse: document.getElementById('adresse').value.trim() || null
   };
 
-  const { data, error } = await supabaseClient.from('patients').insert([newPatient]);
+  const { error } = await supabaseClient.from('patients').insert([newPatient]);
 
   if (error) {
     console.error("Détails erreur Supabase :", error);
@@ -253,8 +254,7 @@ async function handleAddPatient(e) {
   } else {
     const modalEl = document.getElementById('addPatientModal');
     if (modalEl) {
-      const modalInstance = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
-      modalInstance.hide();
+      bootstrap.Modal.getInstance(modalEl)?.hide();
     }
     document.getElementById('add-patient-form').reset();
     await loadAllData();
