@@ -33,25 +33,28 @@ function initEvents() {
     });
   }
 
-  // Soumission Auth
-  const authForm = document.getElementById('auth-form');
-  if (authForm) {
-    authForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const email = document.getElementById('auth-email').value;
-      const password = document.getElementById('auth-password').value;
+ // Soumission Auth
+const authForm = document.getElementById('auth-form');
+if (authForm) {
+  authForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = document.getElementById('auth-email').value.trim();
+    const password = document.getElementById('auth-password').value;
 
-      if (isSignUpMode) {
-        const { error } = await supabaseClient.auth.signUp({ email, password });
-        if (error) alert("Erreur d'inscription : " + error.message);
-        else alert("Inscription réussie !");
+    if (isSignUpMode) {
+      const { data, error } = await supabaseClient.auth.signUp({ email, password });
+      if (error) alert("Erreur d'inscription : " + error.message);
+      else alert("Inscription réussie ! Vous pouvez vous connecter.");
+    } else {
+      const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+      if (error) {
+        alert("Erreur de connexion : " + error.message);
       } else {
-        const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
-        if (error) alert("Erreur de connexion : " + error.message);
-        else checkAuth();
+        await checkAuth();
       }
-    });
-  }
+    }
+  });
+}
 
   // Déconnexion
   const logoutBtn = document.getElementById('btn-logout');
