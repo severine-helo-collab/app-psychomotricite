@@ -54,6 +54,9 @@ function renderSeanceCard(r, indexNumber, patientId) {
 
   const statuts = ["À venir", "Clôturée", "Annulée", "Reportée"];
   const optionsStatut = statuts.map(s => `<option value="${s}" ${r.statut === s ? 'selected' : ''}>${s}</option>`).join('');
+  
+  // Si le statut est Annulée, le tarif affiché est 0 €
+  const displayTarif = r.statut === 'Annulée' ? 0 : (r.tarif || 0);
 
   return `
     <div style="background:#fff; border: 1px solid #e0e0e0; border-left: 4px solid #007bff; border-radius:6px; padding:12px; margin-bottom:12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
@@ -68,7 +71,7 @@ function renderSeanceCard(r, indexNumber, patientId) {
       </div>
       
       <div style="font-size:0.85rem; color:#555; margin-bottom:8px;">
-        <strong>Motif de la séance :</strong> ${r.motif || 'Non renseigné'} | <strong>Tarif :</strong> ${r.tarif || 0} €
+        <strong>Motif de la séance :</strong> ${r.motif || 'Non renseigné'} | <strong>Tarif :</strong> ${displayTarif} €
       </div>
 
       <div style="margin-top:6px;">
@@ -122,7 +125,8 @@ window.viewPatientDetail = async function(patientId) {
   const seancesAvenir = rdvsWithNum.filter(r => new Date(r.date_heure) >= now);
 
   const totalSeances = rdvs ? rdvs.length : 0;
-  const montantTotal = rdvs ? rdvs.reduce((sum, r) => sum + (Number(r.tarif) || 0), 0) : 0;
+  // Si le statut est Annulée, le montant comptabilisé est 0
+  const montantTotal = rdvs ? rdvs.reduce((sum, r) => sum + (r.statut === 'Annulée' ? 0 : (Number(r.tarif) || 0)), 0) : 0;
 
   let avenirHTML = seancesAvenir.length === 0 
     ? '<p style="font-size:0.85rem; color:#777;">Aucune séance à venir.</p>' 
@@ -160,16 +164,24 @@ window.viewPatientDetail = async function(patientId) {
   `;
 };
 
-// 4. Mettre à jour le statut de la séance
+// 4. Mettre à jour le statut de la séance (si Annulée => tarif = 0)
 window.updateSeanceStatut = async function(rdvId, newStatut, patientId) {
+  const updateData = { statut: newStatut };
+
+  if (newStatut === 'Annulée') {
+    updateData.tarif = 0;
+  }
+
   const { error } = await supabaseClient
     .from('rendez_vous')
-    .update({ statut: newStatut })
+    .update(updateData)
     .eq('id', rdvId);
 
   if (error) {
     alert("Erreur lors de la mise à jour du statut : " + error.message);
   } else {
+    // Recharger la fiche du patient pour actualiser l'affichage et les totaux
+    window.viewPatientDetail(patientId);
     loadUpcomingRDV();
   }
 };
@@ -264,12 +276,13 @@ async function loadUpcomingRDV() {
     const dt = new Date(r.date_heure);
     const dateStr = dt.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
     const timeStr = dt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    const displayTarif = r.statut === 'Annulée' ? 0 : (r.tarif || 0);
 
     return `
       <div class="rdv-item clickable-rdv" onclick="viewPatientDetail('${r.patient_id}')" style="cursor:pointer;" title="Cliquer pour ouvrir la fiche patient">
         <div class="rdv-title">${dateStr} à ${timeStr} — ${r.patients ? r.patients.nom.toUpperCase() + ' ' + r.patients.prenom : 'Patient inconnu'}</div>
         <div class="rdv-info">
-          Motif : ${r.motif || 'Non renseigné'} | Tarif : ${r.tarif || 0} € | Statut : <strong>${r.statut}</strong>
+          Motif : ${r.motif || 'Non renseigné'} | Tarif : ${displayTarif} € | Statut : <strong>${r.statut}</strong>
         </div>
       </div>
     `;
@@ -287,7 +300,7 @@ async function loadComptaMonth(yearMonth) {
 
   const { data: rdvs, error } = await supabaseClient
     .from('rendez_vous')
-    .select('id, date_heure, motif, tarif, statut, patients(nom, prenom)')
+    .select('id, date_heure, motif, tarif, statut, patient_id, patients(nom, prenom)')
     .gte('date_heure', startDate)
     .lte('date_heure', endDate)
     .order('date_heure', { ascending: true });
@@ -304,8 +317,10 @@ async function loadComptaMonth(yearMonth) {
     tableBody.innerHTML = '<tr><td colspan="6">Aucun rendez-vous enregistré pour ce mois.</td></tr>';
   } else {
     tableBody.innerHTML = rdvs.map(r => {
-      if (r.statut === 'Clôturée' || r.statut === 'Réglé') totalPaid += Number(r.tarif);
-      if (r.statut === 'À venir') totalPending += Number(r.tarif);
+      const currentTarif = r.statut === 'Annulée' ? 0 : Number(r.tarif || 0);
+
+      if (r.statut === 'Clôturée' || r.statut === 'Réglé') totalPaid += currentTarif;
+      if (r.statut === 'À venir') totalPending += currentTarif;
 
       const dt = new Date(r.date_heure).toLocaleDateString('fr-FR');
 
@@ -314,7 +329,7 @@ async function loadComptaMonth(yearMonth) {
           <td>${dt}</td>
           <td>${r.patients ? r.patients.nom.toUpperCase() + ' ' + r.patients.prenom : 'Inconnu'}</td>
           <td>${r.motif || ''}</td>
-          <td>${r.tarif || 0} €</td>
+          <td>${currentTarif} €</td>
           <td>${r.statut}</td>
           <td><button class="btn-secondary" onclick="viewPatientDetail('${r.patient_id}')">Fiche</button></td>
         </tr>
@@ -466,22 +481,25 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Création d'un RDV avec vérification de date pour le statut initial
+  // Création d'un RDV avec gestion de tarif à 0 si Annulée
   document.getElementById('rdv-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const patient_id = document.getElementById('rdv-patient').value;
     const date_heure = document.getElementById('rdv-datetime').value;
     const motif = document.getElementById('rdv-motif').value.trim();
-    const tarif = document.getElementById('rdv-tarif').value;
+    let tarif = parseFloat(document.getElementById('rdv-tarif').value) || 0;
     const compte_rendu = document.getElementById('rdv-compte-rendu')?.value.trim() || null;
 
-    // Détermination automatique du statut
     const rdvDate = new Date(date_heure);
     const now = new Date();
     const statutInitial = rdvDate >= now ? "À venir" : "Clôturée";
 
+    if (statutInitial === "Annulée") {
+      tarif = 0;
+    }
+
     const { error } = await supabaseClient.from('rendez_vous').insert([{
-      patient_id, date_heure, motif, tarif: parseFloat(tarif), statut: statutInitial, compte_rendu
+      patient_id, date_heure, motif, tarif, statut: statutInitial, compte_rendu
     }]);
 
     if (error) alert("Erreur : " + error.message);
