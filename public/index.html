@@ -67,23 +67,34 @@
         <!-- ZONE DYNAMIQUE : FORMULAIRES MASQUÉS PAR DÉFAUT -->
         
         <!-- Formulaire : Nouveau Patient -->
-       <!-- VUE 1 : PROCHAINS RDV (Vue par défaut) -->
-        <div id="view-patients-section">
-          <!-- Section Prochains Rendez-vous Programmés -->
-          <div class="card">
-            <h2>Prochains rendez-vous programmés</h2>
-            <div id="upcoming-rdv-list" class="rdv-grid">
-              <p>Chargement des rendez-vous...</p>
+        <div id="form-new-patient-container" class="card hidden">
+          <h2>Ajouter un nouveau patient</h2>
+          <form id="patient-form">
+            <div class="form-group">
+              <label for="patient-nom">Nom</label>
+              <input type="text" id="patient-nom" required>
             </div>
-          </div>
-
-          <!-- Section Liste des Patients (Masquée) -->
-          <div id="patients-list-card" class="card hidden">
-            <h2>Liste des Patients (ordre alphabétique)</h2>
-            <div id="patients-list" class="patients-grid">
-              <p>Chargement des patients...</p>
+            <div class="form-group">
+              <label for="patient-prenom">Prénom</label>
+              <input type="text" id="patient-prenom" required>
             </div>
-          </div>
+            <div class="form-group">
+              <label for="patient-dob">Date de naissance</label>
+              <input type="date" id="patient-dob" required>
+            </div>
+            <div class="form-group">
+              <label for="patient-tel">Téléphone</label>
+              <input type="tel" id="patient-tel">
+            </div>
+            <div class="form-group">
+              <label for="patient-email">Email</label>
+              <input type="email" id="patient-email">
+            </div>
+            <div class="btn-group-inline">
+              <button type="submit">Enregistrer</button>
+              <button type="button" class="btn-secondary cancel-form-btn">Annuler</button>
+            </div>
+          </form>
         </div>
 
         <!-- Formulaire : Supprimer un Patient -->
@@ -151,7 +162,7 @@
           </div>
         </div>
 
-        <!-- VUE 2 : COMPTABILITÉ MENSUELLE -->
+        <!-- VUE COMPTABILITÉ MENSUELLE -->
         <div id="view-compta-section" class="card hidden">
           <h2>Comptabilité Mensuelle</h2>
           <div class="form-group" style="max-width: 250px;">
@@ -197,6 +208,35 @@
 
     </main>
 
+  </div>
+
+  <!-- MODALE : LISTE DES PATIENTS -->
+  <div id="modal-patients-list" class="modal hidden">
+    <div class="modal-content card">
+      <div class="modal-header">
+        <h2>Liste des Patients (ordre alphabétique)</h2>
+        <span class="close-modal-btn" onclick="closePatientsModal()">&times;</span>
+      </div>
+      <div id="modal-patients-body" class="patients-modal-list">
+        <p>Chargement des patients...</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODALE : FICHE PATIENT -->
+  <div id="modal-patient-detail" class="modal hidden">
+    <div class="modal-content card">
+      <div class="modal-header">
+        <h2 id="patient-detail-title">Fiche Patient</h2>
+        <span class="close-modal-btn" onclick="closePatientDetailModal()">&times;</span>
+      </div>
+      <div id="patient-detail-body">
+        <p>Chargement...</p>
+      </div>
+      <div class="btn-group-inline" style="margin-top: 1rem;">
+        <button type="button" class="btn-secondary" onclick="closePatientDetailModal()">Fermer</button>
+      </div>
+    </div>
   </div>
 
 </body>
