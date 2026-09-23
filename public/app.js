@@ -6,7 +6,113 @@ if (typeof supabase !== 'undefined') {
   supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 }
 
-// 1. Remplir les menus déroulants des patients
+// 1. Ouvrir la modale de la liste des patients par ordre alphabétique
+async function openPatientsModal() {
+  const container = document.getElementById('modal-patients-body');
+  const modal = document.getElementById('modal-patients-list');
+  if (!container || !modal || !supabaseClient) return;
+
+  modal.classList.remove('hidden');
+  container.innerHTML = '<p>Chargement des patients...</p>';
+
+  const { data: patients, error } = await supabaseClient
+    .from('patients')
+    .select('*')
+    .order('nom', { ascending: true });
+
+  if (error) {
+    container.innerHTML = `<p style="color:red;">Erreur : ${error.message}</p>`;
+    return;
+  }
+
+  if (!patients || patients.length === 0) {
+    container.innerHTML = '<p>Aucun patient enregistré.</p>';
+    return;
+  }
+
+  container.innerHTML = patients.map(p => `
+    <div class="modal-patient-row">
+      <div class="modal-patient-name">${p.nom.toUpperCase()} ${p.prenom}</div>
+      <div class="patient-actions">
+        <button class="icon-btn" title="Voir la fiche" onclick="viewPatientDetail('${p.id}')">👁️</button>
+        <button class="icon-btn" title="Ajouter une séance" onclick="addRdvForPatient('${p.id}')">➕</button>
+        <button class="icon-btn danger-icon" title="Supprimer le patient" onclick="deletePatientModal('${p.id}', '${p.nom.toUpperCase()} ${p.prenom}')">❌</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function closePatientsModal() {
+  document.getElementById('modal-patients-list')?.classList.add('hidden');
+}
+
+// 2. Voir la fiche du patient
+async function viewPatientDetail(patientId) {
+  const modal = document.getElementById('modal-patient-detail');
+  const title = document.getElementById('patient-detail-title');
+  const body = document.getElementById('patient-detail-body');
+  if (!modal || !body || !supabaseClient) return;
+
+  modal.classList.remove('hidden');
+  body.innerHTML = '<p>Chargement des informations...</p>';
+
+  const { data: patient, error } = await supabaseClient
+    .from('patients')
+    .select('*')
+    .eq('id', patientId)
+    .single();
+
+  if (error || !patient) {
+    body.innerHTML = `<p style="color:red;">Erreur lors du chargement de la fiche.</p>`;
+    return;
+  }
+
+  title.textContent = `Fiche de ${patient.prenom} ${patient.nom.toUpperCase()}`;
+
+  const dobStr = patient.date_naissance ? new Date(patient.date_naissance).toLocaleDateString('fr-FR') : 'Non renseignée';
+
+  body.innerHTML = `
+    <div style="display: flex; flex-direction: column; gap: 0.5rem; font-size: 0.95rem;">
+      <p><strong>Nom :</strong> ${patient.nom.toUpperCase()}</p>
+      <p><strong>Prénom :</strong> ${patient.prenom}</p>
+      <p><strong>Date de naissance :</strong> ${dobStr}</p>
+      <p><strong>Téléphone :</strong> ${patient.telephone || 'Non renseigné'}</p>
+      <p><strong>Email :</strong> ${patient.email || 'Non renseigné'}</p>
+    </div>
+  `;
+}
+
+function closePatientDetailModal() {
+  document.getElementById('modal-patient-detail')?.classList.add('hidden');
+}
+
+// 3. Action ➕ : Ouvrir le formulaire de RDV pré-rempli pour ce patient
+async function addRdvForPatient(patientId) {
+  closePatientsModal();
+  hideAllForms();
+  await loadPatientsDropdowns();
+  
+  const select = document.getElementById('rdv-patient');
+  if (select) select.value = patientId;
+
+  document.getElementById('form-new-rdv-container')?.classList.remove('hidden');
+}
+
+// 4. Action ❌ : Supprimer le patient depuis la modale
+async function deletePatientModal(patientId, patientName) {
+  if (confirm(`Êtes-vous sûre de vouloir supprimer le patient "${patientName}" et tous ses rendez-vous associés ?`)) {
+    const { error } = await supabaseClient.from('patients').delete().eq('id', patientId);
+    if (error) {
+      alert("Erreur : " + error.message);
+    } else {
+      alert("Patient supprimé.");
+      openPatientsModal();
+      loadUpcomingRDV();
+    }
+  }
+}
+
+// 5. Remplir les menus déroulants des patients
 async function loadPatientsDropdowns() {
   if (!supabaseClient) return;
 
@@ -25,7 +131,7 @@ async function loadPatientsDropdowns() {
   if (deleteSelect) deleteSelect.innerHTML = optionsHTML;
 }
 
-// 2. Chargement des prochains rendez-vous programmés
+// 6. Chargement des prochains rendez-vous programmés
 async function loadUpcomingRDV() {
   const container = document.getElementById('upcoming-rdv-list');
   if (!container || !supabaseClient) return;
@@ -65,7 +171,7 @@ async function loadUpcomingRDV() {
   }).join('');
 }
 
-// 3. Chargement de la Comptabilité Mensuelle
+// 7. Chargement de la Comptabilité Mensuelle
 async function loadComptaMonth(yearMonth) {
   const tableBody = document.getElementById('compta-table-body');
   if (!tableBody || !supabaseClient) return;
@@ -150,8 +256,6 @@ function switchNav(view) {
     comptaBtn.classList.remove('active');
     patientsSection.classList.remove('hidden');
     comptaSection.classList.add('hidden');
-    
-    // On charge uniquement la liste des prochains rendez-vous
     loadUpcomingRDV();
   } else {
     comptaBtn.classList.add('active');
@@ -191,8 +295,12 @@ async function checkAuth() {
 document.addEventListener('DOMContentLoaded', () => {
   checkAuth();
 
-  // Navigation gauche
-  document.getElementById('nav-patients-btn')?.addEventListener('click', () => switchNav('patients'));
+  // Navigation gauche : Clic sur Patients ouvre la fenêtre modale
+  document.getElementById('nav-patients-btn')?.addEventListener('click', () => {
+    switchNav('patients');
+    openPatientsModal();
+  });
+
   document.getElementById('nav-compta-btn')?.addEventListener('click', () => switchNav('compta'));
 
   // Boutons du haut
