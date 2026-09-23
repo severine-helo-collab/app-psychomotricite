@@ -115,44 +115,52 @@
           </form>
         </div>
 
-        <!-- Formulaire : Ajouter un Rendez-vous -->
-        <div id="form-new-rdv-container" class="card hidden">
-          <h2>Programmer un rendez-vous</h2>
-          <form id="rdv-form">
-            <div class="form-group">
-              <label for="rdv-patient">Patient</label>
-              <select id="rdv-patient" required>
-                <option value="">-- Choisir un patient --</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label for="rdv-datetime">Date et Heure</label>
-              <input type="datetime-local" id="rdv-datetime" required>
-            </div>
-            <div class="form-group">
-              <label for="rdv-motif">Motif de la séance</label>
-              <select id="rdv-motif" required>
-                <option value="">-- Choisir un motif --</option>
-                <option value="Bilan psychomotricité 1/2">Bilan psychomotricité 1/2</option>
-                <option value="Bilan psychomotricité 2/2">Bilan psychomotricité 2/2</option>
-                <option value="Séance de suivi">Séance de suivi</option>
-                <option value="Autre">Autre</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label for="rdv-tarif">Tarif (€)</label>
-              <input type="number" id="rdv-tarif" value="0">
-            </div>
-            <div class="form-group">
-              <label for="rdv-compte-rendu">Compte-rendu de la séance :</label>
-              <textarea id="rdv-compte-rendu" rows="3" placeholder="Saisir un compte-rendu (optionnel)"></textarea>
-            </div>
-            <div class="btn-group-inline">
-              <button type="submit">Enregistrer le RDV</button>
-              <button type="button" class="btn-secondary cancel-form-btn">Annuler</button>
-            </div>
-          </form>
-        </div>
+       <!-- Formulaire : Ajouter un Rendez-vous -->
+<div id="form-new-rdv-container" class="card hidden">
+  <h2>Programmer un rendez-vous</h2>
+  <form id="rdv-form">
+    <div class="form-group">
+      <label for="rdv-patient">Patient</label>
+      <select id="rdv-patient" required>
+        <option value="">-- Choisir un patient --</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label for="rdv-datetime">Date et Heure</label>
+      <input type="datetime-local" id="rdv-datetime" required>
+    </div>
+
+    <div class="form-group">
+      <label for="rdv-motif">Motif de la séance</label>
+      <select id="rdv-motif" required>
+        <option value="">-- Choisir un motif --</option>
+        <option value="Bilan psychomotricité 1/2">Bilan psychomotricité 1/2 (100 €)</option>
+        <option value="Bilan psychomotricité 2/2">Bilan psychomotricité 2/2 (100 €)</option>
+        <option value="Bilan sensoriel de Dunn">Bilan sensoriel de Dunn (130 €)</option>
+        <option value="Séance nourrisson">Séance nourrisson (50 €)</option>
+        <option value="Séance enfant/ado">Séance enfant/ado (50 €)</option>
+        <option value="Séance adultes/personne âgée">Séance adultes/personne âgée (50 €)</option>
+        <option value="Autre">Autre (0 €)</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label for="rdv-tarif">Tarif (€)</label>
+      <input type="number" id="rdv-tarif" value="0" required>
+    </div>
+
+    <div class="form-group">
+      <label for="rdv-compte-rendu">Compte-rendu de la séance :</label>
+      <textarea id="rdv-compte-rendu" rows="3" placeholder="Saisir un compte-rendu (optionnel)"></textarea>
+    </div>
+
+    <div class="btn-group-inline">
+      <button type="submit">Enregistrer le RDV</button>
+      <button type="button" class="btn-secondary cancel-form-btn">Annuler</button>
+    </div>
+  </form>
+</div>
 
         <!-- VUE PRINCIPALE : PROCHAINS RDV -->
         <div id="view-patients-section">
