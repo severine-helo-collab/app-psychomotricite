@@ -395,3 +395,18 @@ button.btn-danger { background-color: var(--danger); }
   border-radius: 50%;
   object-fit: contain;
 }
+
+.header-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.header-logo {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  object-fit: contain;
+}
