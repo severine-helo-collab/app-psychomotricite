@@ -433,9 +433,9 @@ button.btn-danger:hover { background-color: var(--danger-hover); }
 
 .header-content {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 1rem;
+  align-items: center;        /* Aligne le logo et le texte verticalement au centre */
+  justify-content: center;   /* Centre l'ensemble au milieu du header */
+  gap: 1.5rem;               /* Espace entre le logo et le texte */
   flex-wrap: wrap;
 }
 
@@ -444,4 +444,13 @@ button.btn-danger:hover { background-color: var(--danger-hover); }
   height: 150px;
   border-radius: 50%;
   object-fit: contain;
+  display: block;
+}
+
+.header-text {
+  text-align: left;          /* Alignement propre du texte à côté du logo */
+}
+
+.header-text h1 {
+  margin-bottom: 0.2rem;
 }
