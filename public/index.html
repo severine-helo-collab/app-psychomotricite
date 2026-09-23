@@ -67,34 +67,23 @@
         <!-- ZONE DYNAMIQUE : FORMULAIRES MASQUÉS PAR DÉFAUT -->
         
         <!-- Formulaire : Nouveau Patient -->
-        <div id="form-new-patient-container" class="card hidden">
-          <h2>Ajouter un nouveau patient</h2>
-          <form id="patient-form">
-            <div class="form-group">
-              <label for="patient-nom">Nom</label>
-              <input type="text" id="patient-nom" required>
+       <!-- VUE 1 : PROCHAINS RDV (Vue par défaut) -->
+        <div id="view-patients-section">
+          <!-- Section Prochains Rendez-vous Programmés -->
+          <div class="card">
+            <h2>Prochains rendez-vous programmés</h2>
+            <div id="upcoming-rdv-list" class="rdv-grid">
+              <p>Chargement des rendez-vous...</p>
             </div>
-            <div class="form-group">
-              <label for="patient-prenom">Prénom</label>
-              <input type="text" id="patient-prenom" required>
+          </div>
+
+          <!-- Section Liste des Patients (Masquée) -->
+          <div id="patients-list-card" class="card hidden">
+            <h2>Liste des Patients (ordre alphabétique)</h2>
+            <div id="patients-list" class="patients-grid">
+              <p>Chargement des patients...</p>
             </div>
-            <div class="form-group">
-              <label for="patient-dob">Date de naissance</label>
-              <input type="date" id="patient-dob" required>
-            </div>
-            <div class="form-group">
-              <label for="patient-tel">Téléphone</label>
-              <input type="tel" id="patient-tel">
-            </div>
-            <div class="form-group">
-              <label for="patient-email">Email</label>
-              <input type="email" id="patient-email">
-            </div>
-            <div class="btn-group-inline">
-              <button type="submit">Enregistrer</button>
-              <button type="button" class="btn-secondary cancel-form-btn">Annuler</button>
-            </div>
-          </form>
+          </div>
         </div>
 
         <!-- Formulaire : Supprimer un Patient -->
