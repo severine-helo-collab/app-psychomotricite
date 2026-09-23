@@ -87,41 +87,24 @@ if (authForm) {
 // AUTHENTIFICATION & NAVIGATION
 // ==========================================
 async function checkAuth() {
-  const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
+  const { data: { session } } = await supabaseClient.auth.getSession();
   
-  if (sessionError) {
-    console.error("Erreur de session :", sessionError);
-    return;
-  }
+  const authSection = document.getElementById('auth-section');
+  const dashboard = document.getElementById('dashboard');
 
   if (session) {
-    currentUser = session.user;
-    document.getElementById('auth-section').style.display = 'none';
-    document.getElementById('app-section').style.display = 'block';
-    document.getElementById('user-email-display').textContent = currentUser.email;
-
-    // Charger les données avec capture des erreurs Supabase
-    try {
-      await loadData();
-    } catch (err) {
-      console.error("Erreur lors du chargement des données :", err);
-      alert("Connexion réussie, mais impossible de charger les données : " + err.message);
-    }
+    // Utilisateur connecté : masquer la connexion, afficher le tableau de bord
+    authSection.classList.add('hidden');
+    dashboard.classList.remove('hidden');
   } else {
-    currentUser = null;
-    document.getElementById('auth-section').style.display = 'flex';
-    document.getElementById('app-section').style.display = 'none';
+    // Utilisateur non connecté : afficher la connexion, masquer le tableau de bord
+    authSection.classList.remove('hidden');
+    dashboard.classList.add('hidden');
   }
 }
 
-function switchTab(tabName) {
-  ['dashboard', 'patients', 'compta'].forEach(t => {
-    const viewEl = document.getElementById(`view-${t}`);
-    const navEl = document.getElementById(`nav-${t}`);
-    if (viewEl) viewEl.style.display = t === tabName ? 'block' : 'none';
-    if (navEl) navEl.classList.toggle('active', t === tabName);
-  });
-}
+// Vérifier la connexion au chargement de la page
+document.addEventListener('DOMContentLoaded', checkAuth);
 
 // ==========================================
 // CHARGEMENT ET RENDU DES DONNÉES
