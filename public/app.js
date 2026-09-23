@@ -6,7 +6,7 @@ if (typeof supabase !== 'undefined') {
   supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 }
 
-// 1. Ouvrir la modale de la liste des patients
+// 1. Modale de la liste des patients
 window.openPatientsModal = async function() {
   const container = document.getElementById('modal-patients-body');
   const modal = document.getElementById('modal-patients-list');
@@ -46,30 +46,41 @@ window.closePatientsModal = function() {
   document.getElementById('modal-patients-list')?.classList.add('hidden');
 };
 
-// Fonction utilitaire pour générer la carte HTML d'une séance
-function renderSeanceCard(r, indexNumber) {
+// 2. Génération de la carte d'une séance avec statut modifiable et compte-rendu
+function renderSeanceCard(r, indexNumber, patientId) {
   const dt = new Date(r.date_heure);
   const dateStr = dt.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   const timeStr = dt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-  const badgeClass = r.statut === 'Réglé' ? 'regle' : (r.statut === 'Annulé' ? 'annule' : 'attente');
+
+  const statuts = ["À venir", "Clôturée", "Annulée", "Reportée"];
+  const optionsStatut = statuts.map(s => `<option value="${s}" ${r.statut === s ? 'selected' : ''}>${s}</option>`).join('');
 
   return `
-    <div style="background:#fff; border: 1px solid #e0e0e0; border-left: 4px solid #007bff; border-radius:6px; padding:12px; margin-bottom:10px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-      <div style="font-weight:bold; font-size:0.95rem; color:#2c3e50; display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+    <div style="background:#fff; border: 1px solid #e0e0e0; border-left: 4px solid #007bff; border-radius:6px; padding:12px; margin-bottom:12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+      <div style="font-weight:bold; font-size:0.95rem; color:#2c3e50; display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
         <span>🔢 Séance n°${indexNumber} — 📅 ${dateStr} à ${timeStr}</span>
-        <span class="badge ${badgeClass}">${r.statut}</span>
+        <div>
+          <label style="font-size:0.8rem; margin-right:4px;">Statut :</label>
+          <select style="padding:3px 6px; font-size:0.8rem; border-radius:4px; border:1px solid #ccc;" onchange="updateSeanceStatut('${r.id}', this.value, '${patientId}')">
+            ${optionsStatut}
+          </select>
+        </div>
       </div>
-      <div style="font-size:0.85rem; color:#555; margin-bottom:6px;">
-        <strong>Motif :</strong> ${r.motif || 'Non renseigné'} | <strong>Tarif :</strong> ${r.tarif || 0} €
+      
+      <div style="font-size:0.85rem; color:#555; margin-bottom:8px;">
+        <strong>Motif de la séance :</strong> ${r.motif || 'Non renseigné'} | <strong>Tarif :</strong> ${r.tarif || 0} €
       </div>
-      <div style="font-size:0.85rem; color:#333; background:#f8f9fa; padding:8px; border-radius:4px; border: 1px solid #eee;">
-        <strong>Compte-rendu :</strong> ${r.compte_rendu ? `<span style="white-space:pre-wrap;">${r.compte_rendu}</span>` : '<em>Aucun compte-rendu rédigé.</em>'}
+
+      <div style="margin-top:6px;">
+        <label style="font-size:0.8rem; font-weight:bold; color:#333; display:block; margin-bottom:4px;">Compte-rendu de la séance :</label>
+        <textarea id="cr-${r.id}" rows="2" style="width:100%; font-size:0.85rem; padding:6px; border-radius:4px; border:1px solid #ccc; font-family:inherit;" placeholder="Rédiger le compte-rendu...">${r.compte_rendu || ''}</textarea>
+        <button class="btn-secondary" style="font-size:0.75rem; padding:4px 8px; margin-top:4px;" onclick="saveCompteRendu('${r.id}', '${patientId}')">💾 Enregistrer le compte-rendu</button>
       </div>
     </div>
   `;
 }
 
-// 2. Voir la fiche du patient (détail complet avec numérotation, séances passées/à venir et compte-rendu)
+// 3. Voir la fiche patient complète
 window.viewPatientDetail = async function(patientId) {
   const modal = document.getElementById('modal-patient-detail');
   const title = document.getElementById('patient-detail-title');
@@ -79,7 +90,6 @@ window.viewPatientDetail = async function(patientId) {
   modal.classList.remove('hidden');
   body.innerHTML = '<p>Chargement des informations...</p>';
 
-  // Récupération des infos du patient
   const { data: patient, error: errPatient } = await supabaseClient
     .from('patients')
     .select('*')
@@ -91,7 +101,6 @@ window.viewPatientDetail = async function(patientId) {
     return;
   }
 
-  // Récupération de toutes les séances triées par date croissante pour la numérotation
   const { data: rdvs, error: errRdvs } = await supabaseClient
     .from('rendez_vous')
     .select('*')
@@ -107,37 +116,24 @@ window.viewPatientDetail = async function(patientId) {
   }
 
   const now = new Date();
-  
-  // Associer à chaque séance son numéro d'ordre chronologique (Séance 1, Séance 2, ...)
   const rdvsWithNum = (rdvs || []).map((r, idx) => ({ ...r, number: idx + 1 }));
 
-  // Séparation en séances passées et à venir
-  const seancesPassees = rdvsWithNum.filter(r => new Date(r.date_heure) < now).reverse(); // plus récentes en premier
-  const seancesAvenir = rdvsWithNum.filter(r => new Date(r.date_heure) >= now); // chronologique
+  const seancesPassees = rdvsWithNum.filter(r => new Date(r.date_heure) < now).reverse();
+  const seancesAvenir = rdvsWithNum.filter(r => new Date(r.date_heure) >= now);
 
-  // Calcul du nombre de séances et du montant total
   const totalSeances = rdvs ? rdvs.length : 0;
   const montantTotal = rdvs ? rdvs.reduce((sum, r) => sum + (Number(r.tarif) || 0), 0) : 0;
 
-  // HTML Séances à venir
-  let avenirHTML = '';
-  if (seancesAvenir.length === 0) {
-    avenirHTML = '<p style="font-size:0.85rem; color:#777;">Aucune séance à venir.</p>';
-  } else {
-    avenirHTML = seancesAvenir.map(r => renderSeanceCard(r, r.number)).join('');
-  }
+  let avenirHTML = seancesAvenir.length === 0 
+    ? '<p style="font-size:0.85rem; color:#777;">Aucune séance à venir.</p>' 
+    : seancesAvenir.map(r => renderSeanceCard(r, r.number, patientId)).join('');
 
-  // HTML Séances passées
-  let passeesHTML = '';
-  if (seancesPassees.length === 0) {
-    passeesHTML = '<p style="font-size:0.85rem; color:#777;">Aucune séance passée.</p>';
-  } else {
-    passeesHTML = seancesPassees.map(r => renderSeanceCard(r, r.number)).join('');
-  }
+  let passeesHTML = seancesPassees.length === 0 
+    ? '<p style="font-size:0.85rem; color:#777;">Aucune séance passée.</p>' 
+    : seancesPassees.map(r => renderSeanceCard(r, r.number, patientId)).join('');
 
   body.innerHTML = `
-    <!-- Infos Générales du Patient -->
-    <div style="display: flex; flex-direction: column; gap: 0.4rem; font-size: 0.95rem; margin-bottom:1rem;">
+    <div style="display: flex; flex-direction: column; gap: 0.3rem; font-size: 0.95rem; margin-bottom:1rem;">
       <p><strong>Nom :</strong> ${patient.nom.toUpperCase()}</p>
       <p><strong>Prénom :</strong> ${patient.prenom}</p>
       <p><strong>Date de naissance :</strong> ${dobStr}</p>
@@ -147,27 +143,16 @@ window.viewPatientDetail = async function(patientId) {
 
     <hr style="border:0; border-top:1px solid #ddd; margin: 12px 0;" />
 
-    <div style="max-height: 380px; overflow-y: auto; padding-right: 5px;">
-      <!-- Séances à venir -->
-      <h4 style="margin-bottom:8px; color:#007bff; display:flex; align-items:center; gap:6px;">
-        🔮 Séances à venir (${seancesAvenir.length})
-      </h4>
-      <div style="margin-bottom:15px;">
-        ${avenirHTML}
-      </div>
+    <div style="max-height: 400px; overflow-y: auto; padding-right: 5px;">
+      <h4 style="margin-bottom:8px; color:#007bff;">🔮 Séances à venir (${seancesAvenir.length})</h4>
+      <div style="margin-bottom:15px;">${avenirHTML}</div>
 
-      <!-- Séances passées -->
-      <h4 style="margin-bottom:8px; color:#2c3e50; display:flex; align-items:center; gap:6px;">
-        📜 Séances passées (${seancesPassees.length})
-      </h4>
-      <div>
-        ${passeesHTML}
-      </div>
+      <h4 style="margin-bottom:8px; color:#2c3e50;">📜 Séances passées (${seancesPassees.length})</h4>
+      <div>${passeesHTML}</div>
     </div>
 
     <hr style="border:0; border-top:1px solid #ddd; margin: 12px 0;" />
 
-    <!-- Total des séances et montant global -->
     <div style="background:#e9ecef; padding: 12px; border-radius: 6px; font-weight:bold; font-size:0.95rem; display:flex; justify-content:space-between; align-items:center;">
       <span>Total séances : <span style="color:#007bff;">${totalSeances}</span></span>
       <span>Montant total : <span style="color:#28a745;">${montantTotal.toFixed(2)} €</span></span>
@@ -175,11 +160,41 @@ window.viewPatientDetail = async function(patientId) {
   `;
 };
 
+// 4. Mettre à jour le statut de la séance
+window.updateSeanceStatut = async function(rdvId, newStatut, patientId) {
+  const { error } = await supabaseClient
+    .from('rendez_vous')
+    .update({ statut: newStatut })
+    .eq('id', rdvId);
+
+  if (error) {
+    alert("Erreur lors de la mise à jour du statut : " + error.message);
+  } else {
+    loadUpcomingRDV();
+  }
+};
+
+// 5. Enregistrer le compte-rendu de la séance
+window.saveCompteRendu = async function(rdvId, patientId) {
+  const crValue = document.getElementById(`cr-${rdvId}`)?.value.trim() || '';
+
+  const { error } = await supabaseClient
+    .from('rendez_vous')
+    .update({ compte_rendu: crValue })
+    .eq('id', rdvId);
+
+  if (error) {
+    alert("Erreur lors de la sauvegarde du compte-rendu : " + error.message);
+  } else {
+    alert("Compte-rendu sauvegardé !");
+  }
+};
+
 window.closePatientDetailModal = function() {
   document.getElementById('modal-patient-detail')?.classList.add('hidden');
 };
 
-// 3. Action ➕ : Ouvrir le formulaire de RDV pré-rempli pour ce patient
+// 6. Action ➕ : Pré-remplir la séance pour un patient
 window.addRdvForPatient = async function(patientId) {
   window.closePatientsModal();
   hideAllForms();
@@ -191,13 +206,12 @@ window.addRdvForPatient = async function(patientId) {
   document.getElementById('form-new-rdv-container')?.classList.remove('hidden');
 };
 
-// 4. Action ❌ : Supprimer le patient depuis la modale
+// 7. Supprimer un patient
 window.deletePatientModal = async function(patientId, patientName) {
   if (confirm(`Êtes-vous sûre de vouloir supprimer le patient "${patientName}" et tous ses rendez-vous associés ?`)) {
     const { error } = await supabaseClient.from('patients').delete().eq('id', patientId);
-    if (error) {
-      alert("Erreur : " + error.message);
-    } else {
+    if (error) alert("Erreur : " + error.message);
+    else {
       alert("Patient supprimé.");
       window.openPatientsModal();
       loadUpcomingRDV();
@@ -205,7 +219,6 @@ window.deletePatientModal = async function(patientId, patientName) {
   }
 };
 
-// 5. Remplir les menus déroulants des patients
 async function loadPatientsDropdowns() {
   if (!supabaseClient) return;
 
@@ -224,7 +237,7 @@ async function loadPatientsDropdowns() {
   if (deleteSelect) deleteSelect.innerHTML = optionsHTML;
 }
 
-// 6. Chargement des prochains rendez-vous programmés
+// 8. Chargement de la liste des rendez-vous à venir
 async function loadUpcomingRDV() {
   const container = document.getElementById('upcoming-rdv-list');
   if (!container || !supabaseClient) return;
@@ -251,20 +264,19 @@ async function loadUpcomingRDV() {
     const dt = new Date(r.date_heure);
     const dateStr = dt.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
     const timeStr = dt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-    const badgeClass = r.statut === 'Réglé' ? 'regle' : (r.statut === 'Annulé' ? 'annule' : 'attente');
 
     return `
-      <div class="rdv-item clickable-rdv" onclick="viewPatientDetail('${r.patient_id}')" title="Cliquer pour voir la fiche patient">
-        <div class="rdv-title">${dateStr} à ${timeStr} - ${r.patients ? r.patients.nom.toUpperCase() + ' ' + r.patients.prenom : 'Patient inconnu'}</div>
+      <div class="rdv-item clickable-rdv" onclick="viewPatientDetail('${r.patient_id}')" style="cursor:pointer;" title="Cliquer pour ouvrir la fiche patient">
+        <div class="rdv-title">${dateStr} à ${timeStr} — ${r.patients ? r.patients.nom.toUpperCase() + ' ' + r.patients.prenom : 'Patient inconnu'}</div>
         <div class="rdv-info">
-          Motif : ${r.motif} | Tarif : ${r.tarif} € | Statut : <span class="badge ${badgeClass}">${r.statut}</span>
+          Motif : ${r.motif || 'Non renseigné'} | Tarif : ${r.tarif || 0} € | Statut : <strong>${r.statut}</strong>
         </div>
       </div>
     `;
   }).join('');
 }
 
-// 7. Chargement de la Comptabilité Mensuelle
+// 9. Comptabilité Mensuelle
 async function loadComptaMonth(yearMonth) {
   const tableBody = document.getElementById('compta-table-body');
   if (!tableBody || !supabaseClient) return;
@@ -292,21 +304,19 @@ async function loadComptaMonth(yearMonth) {
     tableBody.innerHTML = '<tr><td colspan="6">Aucun rendez-vous enregistré pour ce mois.</td></tr>';
   } else {
     tableBody.innerHTML = rdvs.map(r => {
-      if (r.statut === 'Réglé') totalPaid += Number(r.tarif);
-      if (r.statut === 'En attente') totalPending += Number(r.tarif);
+      if (r.statut === 'Clôturée' || r.statut === 'Réglé') totalPaid += Number(r.tarif);
+      if (r.statut === 'À venir') totalPending += Number(r.tarif);
 
       const dt = new Date(r.date_heure).toLocaleDateString('fr-FR');
-      const badgeClass = r.statut === 'Réglé' ? 'regle' : (r.statut === 'Annulé' ? 'annule' : 'attente');
-      const nextStatut = r.statut === 'Réglé' ? 'En attente' : 'Réglé';
 
       return `
         <tr>
           <td>${dt}</td>
           <td>${r.patients ? r.patients.nom.toUpperCase() + ' ' + r.patients.prenom : 'Inconnu'}</td>
-          <td>${r.motif}</td>
-          <td>${r.tarif} €</td>
-          <td><span class="badge ${badgeClass}">${r.statut}</span></td>
-          <td><button class="btn-secondary" onclick="togglePayment('${r.id}', '${nextStatut}', '${yearMonth}')">Passer en ${nextStatut}</button></td>
+          <td>${r.motif || ''}</td>
+          <td>${r.tarif || 0} €</td>
+          <td>${r.statut}</td>
+          <td><button class="btn-secondary" onclick="viewPatientDetail('${r.patient_id}')">Fiche</button></td>
         </tr>
       `;
     }).join('');
@@ -316,16 +326,6 @@ async function loadComptaMonth(yearMonth) {
   document.getElementById('summary-paid-amount').textContent = `${totalPaid.toFixed(2)} €`;
   document.getElementById('summary-pending-amount').textContent = `${totalPending.toFixed(2)} €`;
 }
-
-window.togglePayment = async (rdvId, newStatut, yearMonth) => {
-  const { error } = await supabaseClient
-    .from('rendez_vous')
-    .update({ statut: newStatut })
-    .eq('id', rdvId);
-
-  if (error) alert("Erreur : " + error.message);
-  else loadComptaMonth(yearMonth);
-};
 
 function hideAllForms() {
   document.getElementById('form-new-patient-container')?.classList.add('hidden');
@@ -466,17 +466,22 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // Création d'un RDV avec vérification de date pour le statut initial
   document.getElementById('rdv-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const patient_id = document.getElementById('rdv-patient').value;
     const date_heure = document.getElementById('rdv-datetime').value;
     const motif = document.getElementById('rdv-motif').value.trim();
     const tarif = document.getElementById('rdv-tarif').value;
-    const statut = document.getElementById('rdv-statut').value;
     const compte_rendu = document.getElementById('rdv-compte-rendu')?.value.trim() || null;
 
+    // Détermination automatique du statut
+    const rdvDate = new Date(date_heure);
+    const now = new Date();
+    const statutInitial = rdvDate >= now ? "À venir" : "Clôturée";
+
     const { error } = await supabaseClient.from('rendez_vous').insert([{
-      patient_id, date_heure, motif, tarif: parseFloat(tarif), statut, compte_rendu
+      patient_id, date_heure, motif, tarif: parseFloat(tarif), statut: statutInitial, compte_rendu
     }]);
 
     if (error) alert("Erreur : " + error.message);
