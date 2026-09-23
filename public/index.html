@@ -115,54 +115,54 @@
           </form>
         </div>
 
-      <!-- Formulaire : Ajouter un Rendez-vous -->
-<div id="form-new-rdv-container" class="card hidden">
-  <h2>Programmer un rendez-vous</h2>
-  <form id="rdv-form">
-    <div class="form-group">
-      <label for="rdv-patient">Patient</label>
-      <select id="rdv-patient" required>
-        <option value="">-- Choisir un patient --</option>
-      </select>
-    </div>
+        <!-- Formulaire : Ajouter un Rendez-vous -->
+        <div id="form-new-rdv-container" class="card hidden">
+          <h2>Programmer un rendez-vous</h2>
+          <form id="rdv-form">
+            <div class="form-group">
+              <label for="rdv-patient">Patient</label>
+              <select id="rdv-patient" required>
+                <option value="">-- Choisir un patient --</option>
+              </select>
+            </div>
 
-    <div class="form-group">
-      <label for="rdv-datetime">Date et Heure</label>
-      <input type="datetime-local" id="rdv-datetime" required>
-    </div>
+            <div class="form-group">
+              <label for="rdv-datetime">Date et Heure</label>
+              <input type="datetime-local" id="rdv-datetime" required>
+            </div>
 
-    <div class="form-group">
-      <label for="rdv-motif">Motif de la séance</label>
-      <select id="rdv-motif" required>
-        <option value="">-- Choisir un motif --</option>
-        <option value="Bilan psychomotricité 1/2" data-tarif="100">Bilan psychomotricité 1/2 (100 €)</option>
-        <option value="Bilan psychomotricité 2/2" data-tarif="100">Bilan psychomotricité 2/2 (100 €)</option>
-        <option value="Bilan sensoriel de Dunn" data-tarif="130">Bilan sensoriel de Dunn (130 €)</option>
-        <option value="Séance nourrisson" data-tarif="50">Séance nourrisson (50 €)</option>
-        <option value="Séance enfant/ado" data-tarif="50">Séance enfant/ado (50 €)</option>
-        <option value="Séance adultes/personne âgée" data-tarif="50">Séance adultes/personne âgée (50 €)</option>
-        <option value="Autre" data-tarif="0">Autre (0 €)</option>
-      </select>
-    </div>
+            <div class="form-group">
+              <label for="rdv-motif">Motif de la séance</label>
+              <select id="rdv-motif" required>
+                <option value="">-- Choisir un motif --</option>
+                <option value="Bilan psychomotricité 1/2" data-tarif="100">Bilan psychomotricité 1/2 (100 €)</option>
+                <option value="Bilan psychomotricité 2/2" data-tarif="100">Bilan psychomotricité 2/2 (100 €)</option>
+                <option value="Bilan sensoriel de Dunn" data-tarif="130">Bilan sensoriel de Dunn (130 €)</option>
+                <option value="Séance nourrisson" data-tarif="50">Séance nourrisson (50 €)</option>
+                <option value="Séance enfant/ado" data-tarif="50">Séance enfant/ado (50 €)</option>
+                <option value="Séance adultes/personne âgée" data-tarif="50">Séance adultes/personne âgée (50 €)</option>
+                <option value="Autre" data-tarif="0">Autre (0 €)</option>
+              </select>
+            </div>
 
-    <div class="form-group">
-      <label for="rdv-tarif">Tarif (€)</label>
-      <input type="number" id="rdv-tarif" value="0" min="0" step="1" required>
-    </div>
+            <div class="form-group">
+              <label for="rdv-tarif">Tarif (€)</label>
+              <input type="number" id="rdv-tarif" value="0" min="0" step="1" required>
+            </div>
 
-    <div class="form-group">
-      <label for="rdv-compte-rendu">Compte-rendu de la séance :</label>
-      <textarea id="rdv-compte-rendu" rows="3" placeholder="Saisir un compte-rendu (optionnel)"></textarea>
-    </div>
+            <div class="form-group">
+              <label for="rdv-compte-rendu">Compte-rendu de la séance :</label>
+              <textarea id="rdv-compte-rendu" rows="3" placeholder="Saisir un compte-rendu (optionnel)"></textarea>
+            </div>
 
-    <div class="btn-group-inline">
-      <button type="submit">Enregistrer le RDV</button>
-      <button type="button" class="btn-secondary cancel-form-btn">Annuler</button>
-    </div>
-  </form>
-</div>
+            <div class="btn-group-inline">
+              <button type="submit">Enregistrer le RDV</button>
+              <button type="button" class="btn-secondary cancel-form-btn">Annuler</button>
+            </div>
+          </form>
+        </div>
 
-        <!-- VUE PRINCIPALE : PROCHAINS RDV -->
+        <!-- VUE 1 : PATIENTS & PROCHAINS RDV -->
         <div id="view-patients-section">
           <div class="card">
             <h2>Prochains rendez-vous programmés</h2>
@@ -172,37 +172,78 @@
           </div>
         </div>
 
-       <!-- Nouvel encart Bilan Financier (Chiffre d'affaires, Urssaf, Charges, Bénéfice) -->
-<div id="bilan-financier-container" style="background: #f8f9fa; border: 1px solid #007bff; border-radius: 8px; padding: 15px; margin-top: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-  <h3 style="margin-top:0; color:#007bff;">📊 Bilan Financier Mensuel</h3>
-  
-  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; font-size: 0.95rem;">
-    <div><strong>Chiffre d'Affaires (encaissé) :</strong> <br><span id="bilan-ca" style="color:#28a745; font-size:1.1rem; font-weight:bold;">0.00 €</span></div>
-    
-    <div>
-      <strong>Cotisations URSSAF :</strong> 
-      <select id="urssaf-rate-select" style="padding: 2px 5px; font-size:0.85rem; border-radius:4px; margin-left:5px;">
-        <option value="0.121">1ère année (ACRE : ~12.1%)</option>
-        <option value="0.211">Taux normal (~21.1%)</option>
-      </select>
-      <br><span id="bilan-urssaf" style="color:#dc3545; font-size:1.1rem; font-weight:bold;">- 0.00 €</span>
-    </div>
+        <!-- VUE 2 : COMPTABILITÉ (Masquée par défaut) -->
+        <div id="view-compta-section" class="hidden">
+          <div class="card">
+            <h2>Suivi Comptable Mensuel</h2>
+            
+            <div class="form-group" style="max-width: 250px; margin-bottom: 1rem;">
+              <label for="compta-month-select">Choisir le mois :</label>
+              <input type="month" id="compta-month-select">
+            </div>
 
-    <div><strong>Total Charges Fixes :</strong> <br><span id="bilan-charges" style="color:#dc3545; font-size:1.1rem; font-weight:bold;">- 517.90 €</span></div>
-    
-    <div><strong>Bénéfice Net Estimé :</strong> <br><span id="bilan-net" style="color:#007bff; font-size:1.2rem; font-weight:bold;">0.00 €</span></div>
+            <div class="compta-summary" style="display: flex; gap: 15px; margin-bottom: 1rem; flex-wrap: wrap;">
+              <div>Nombre de RDV : <strong id="summary-total-count">0</strong></div>
+              <div>Montant Encaissé : <strong id="summary-paid-amount" style="color: #28a745;">0.00 €</strong></div>
+              <div>En attente : <strong id="summary-pending-amount" style="color: #ffc107;">0.00 €</strong></div>
+            </div>
+
+            <!-- Tableau des séances du mois -->
+            <table class="compta-table" style="width: 100%; border-collapse: collapse; margin-bottom: 1.5rem;">
+              <thead>
+                <tr style="background: #f1f1f1; text-align: left;">
+                  <th style="padding: 8px;">Date</th>
+                  <th style="padding: 8px;">Patient</th>
+                  <th style="padding: 8px;">Motif</th>
+                  <th style="padding: 8px;">Tarif</th>
+                  <th style="padding: 8px;">Statut</th>
+                  <th style="padding: 8px;">Action</th>
+                </tr>
+              </thead>
+              <tbody id="compta-table-body">
+                <tr><td colspan="6">Chargement...</td></tr>
+              </tbody>
+            </table>
+
+            <!-- Encart Bilan Financier Mensuel -->
+            <div id="bilan-financier-container" style="background: #f8f9fa; border: 1px solid #007bff; border-radius: 8px; padding: 15px; margin-top: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+              <h3 style="margin-top:0; color:#007bff;">📊 Bilan Financier Mensuel</h3>
+              
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; font-size: 0.95rem;">
+                <div><strong>Chiffre d'Affaires (encaissé) :</strong> <br><span id="bilan-ca" style="color:#28a745; font-size:1.1rem; font-weight:bold;">0.00 €</span></div>
+                
+                <div>
+                  <strong>Cotisations URSSAF :</strong> 
+                  <select id="urssaf-rate-select" style="padding: 2px 5px; font-size:0.85rem; border-radius:4px; margin-left:5px;">
+                    <option value="0.121">1ère année (ACRE : ~12.1%)</option>
+                    <option value="0.211">Taux normal (~21.1%)</option>
+                  </select>
+                  <br><span id="bilan-urssaf" style="color:#dc3545; font-size:1.1rem; font-weight:bold;">- 0.00 €</span>
+                </div>
+
+                <div><strong>Total Charges Fixes :</strong> <br><span id="bilan-charges" style="color:#dc3545; font-size:1.1rem; font-weight:bold;">- 517.90 €</span></div>
+                
+                <div><strong>Bénéfice Net Estimé :</strong> <br><span id="bilan-net" style="color:#007bff; font-size:1.2rem; font-weight:bold;">0.00 €</span></div>
+              </div>
+
+              <details style="margin-top: 15px; font-size: 0.85rem; color: #555;">
+                <summary style="cursor: pointer; font-weight: bold;">Détail des charges mensuelles (cliquer pour masquer/afficher)</summary>
+                <ul style="margin: 5px 0; padding-left: 20px;">
+                  <li>Loyer : 430.00 €</li>
+                  <li>Doctolib : 68.00 €</li>
+                  <li>MACSF : 19.90 €</li>
+                </ul>
+                <em>Note : Les taux URSSAF appliqués sont basés sur le régime BNC des professions libérales.</em>
+              </details>
+            </div>
+
+          </div>
+        </div>
+
+      </section>
+    </main>
+
   </div>
-
-  <details style="margin-top: 15px; font-size: 0.85rem; color: #555;">
-    <summary style="cursor: pointer; font-weight: bold;">Détail des charges mensuelles (cliquer pour masquer/afficher)</summary>
-    <ul style="margin: 5px 0; padding-left: 20px;">
-      <li>Loyer : 430.00 €</li>
-      <li>Doctolib : 68.00 €</li>
-      <li>MACSF : 19.90 €</li>
-    </ul>
-    <em>Note : Les taux URSSAF appliqués sont basés sur le régime BNC des professions libérales réglementées / non réglementées (ajustable selon votre situation).</em>
-  </details>
-</div>
 
   <!-- MODALE : LISTE DES PATIENTS -->
   <div id="modal-patients-list" class="modal hidden">
