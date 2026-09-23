@@ -405,8 +405,8 @@ button.btn-danger { background-color: var(--danger); }
 }
 
 .header-logo {
-  width: 15px;
-  height: 15px;
+  width: 150px;
+  height: 150px;
   border-radius: 50%;
   object-fit: contain;
 }
