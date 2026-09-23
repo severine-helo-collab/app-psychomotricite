@@ -10,7 +10,10 @@ if (typeof supabase !== 'undefined') {
 const TARIFS_MOTIFS = {
   "Bilan psychomotricité 1/2": 100,
   "Bilan psychomotricité 2/2": 100,
-  "Séance de suivi": 60,
+  "Bilan sensoriel de Dunn": 130,
+  "Séance nourrisson": 50,
+  "Séance enfant/ado": 50,
+  "Séance adultes/personne âgée": 50,
   "Autre": 0
 };
 
