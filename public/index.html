@@ -115,7 +115,7 @@
           </form>
         </div>
 
-       <!-- Formulaire : Ajouter un Rendez-vous -->
+      <!-- Formulaire : Ajouter un Rendez-vous -->
 <div id="form-new-rdv-container" class="card hidden">
   <h2>Programmer un rendez-vous</h2>
   <form id="rdv-form">
@@ -135,19 +135,19 @@
       <label for="rdv-motif">Motif de la séance</label>
       <select id="rdv-motif" required>
         <option value="">-- Choisir un motif --</option>
-        <option value="Bilan psychomotricité 1/2">Bilan psychomotricité 1/2 (100 €)</option>
-        <option value="Bilan psychomotricité 2/2">Bilan psychomotricité 2/2 (100 €)</option>
-        <option value="Bilan sensoriel de Dunn">Bilan sensoriel de Dunn (130 €)</option>
-        <option value="Séance nourrisson">Séance nourrisson (50 €)</option>
-        <option value="Séance enfant/ado">Séance enfant/ado (50 €)</option>
-        <option value="Séance adultes/personne âgée">Séance adultes/personne âgée (50 €)</option>
-        <option value="Autre">Autre (0 €)</option>
+        <option value="Bilan psychomotricité 1/2" data-tarif="100">Bilan psychomotricité 1/2 (100 €)</option>
+        <option value="Bilan psychomotricité 2/2" data-tarif="100">Bilan psychomotricité 2/2 (100 €)</option>
+        <option value="Bilan sensoriel de Dunn" data-tarif="130">Bilan sensoriel de Dunn (130 €)</option>
+        <option value="Séance nourrisson" data-tarif="50">Séance nourrisson (50 €)</option>
+        <option value="Séance enfant/ado" data-tarif="50">Séance enfant/ado (50 €)</option>
+        <option value="Séance adultes/personne âgée" data-tarif="50">Séance adultes/personne âgée (50 €)</option>
+        <option value="Autre" data-tarif="0">Autre (0 €)</option>
       </select>
     </div>
 
     <div class="form-group">
       <label for="rdv-tarif">Tarif (€)</label>
-      <input type="number" id="rdv-tarif" value="0" required>
+      <input type="number" id="rdv-tarif" value="0" min="0" step="1" required>
     </div>
 
     <div class="form-group">
