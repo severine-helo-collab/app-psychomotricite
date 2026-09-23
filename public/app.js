@@ -6,6 +6,14 @@ if (typeof supabase !== 'undefined') {
   supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 }
 
+// Table de correspondance Motif -> Tarif
+const TARIFS_MOTIFS = {
+  "Bilan psychomotricité 1/2": 100,
+  "Bilan psychomotricité 2/2": 100,
+  "Séance de suivi": 60,
+  "Autre": 0
+};
+
 // 1. Modale de la liste des patients
 window.openPatientsModal = async function() {
   const container = document.getElementById('modal-patients-body');
@@ -46,7 +54,7 @@ window.closePatientsModal = function() {
   document.getElementById('modal-patients-list')?.classList.add('hidden');
 };
 
-// 2. Génération de la carte d'une séance avec statut modifiable et compte-rendu
+// 2. Carte d'une séance avec statut modifiable et compte-rendu
 function renderSeanceCard(r, indexNumber, patientId) {
   const dt = new Date(r.date_heure);
   const dateStr = dt.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
@@ -54,8 +62,7 @@ function renderSeanceCard(r, indexNumber, patientId) {
 
   const statuts = ["À venir", "Clôturée", "Annulée", "Reportée"];
   const optionsStatut = statuts.map(s => `<option value="${s}" ${r.statut === s ? 'selected' : ''}>${s}</option>`).join('');
-  
-  // Si le statut est Annulée, le tarif affiché est 0 €
+
   const displayTarif = r.statut === 'Annulée' ? 0 : (r.tarif || 0);
 
   return `
@@ -69,9 +76,9 @@ function renderSeanceCard(r, indexNumber, patientId) {
           </select>
         </div>
       </div>
-      
+
       <div style="font-size:0.85rem; color:#555; margin-bottom:8px;">
-        <strong>Motif de la séance :</strong> ${r.motif || 'Non renseigné'} | <strong>Tarif :</strong> ${displayTarif} €
+        <strong>Motif :</strong> ${r.motif || 'Non renseigné'} | <strong>Tarif :</strong> ${displayTarif} €
       </div>
 
       <div style="margin-top:6px;">
@@ -125,15 +132,14 @@ window.viewPatientDetail = async function(patientId) {
   const seancesAvenir = rdvsWithNum.filter(r => new Date(r.date_heure) >= now);
 
   const totalSeances = rdvs ? rdvs.length : 0;
-  // Si le statut est Annulée, le montant comptabilisé est 0
   const montantTotal = rdvs ? rdvs.reduce((sum, r) => sum + (r.statut === 'Annulée' ? 0 : (Number(r.tarif) || 0)), 0) : 0;
 
-  let avenirHTML = seancesAvenir.length === 0 
-    ? '<p style="font-size:0.85rem; color:#777;">Aucune séance à venir.</p>' 
+  let avenirHTML = seancesAvenir.length === 0
+    ? '<p style="font-size:0.85rem; color:#777;">Aucune séance à venir.</p>'
     : seancesAvenir.map(r => renderSeanceCard(r, r.number, patientId)).join('');
 
-  let passeesHTML = seancesPassees.length === 0 
-    ? '<p style="font-size:0.85rem; color:#777;">Aucune séance passée.</p>' 
+  let passeesHTML = seancesPassees.length === 0
+    ? '<p style="font-size:0.85rem; color:#777;">Aucune séance passée.</p>'
     : seancesPassees.map(r => renderSeanceCard(r, r.number, patientId)).join('');
 
   body.innerHTML = `
@@ -164,10 +170,9 @@ window.viewPatientDetail = async function(patientId) {
   `;
 };
 
-// 4. Mettre à jour le statut de la séance (si Annulée => tarif = 0)
+// 4. Mettre à jour le statut
 window.updateSeanceStatut = async function(rdvId, newStatut, patientId) {
   const updateData = { statut: newStatut };
-
   if (newStatut === 'Annulée') {
     updateData.tarif = 0;
   }
@@ -180,13 +185,12 @@ window.updateSeanceStatut = async function(rdvId, newStatut, patientId) {
   if (error) {
     alert("Erreur lors de la mise à jour du statut : " + error.message);
   } else {
-    // Recharger la fiche du patient pour actualiser l'affichage et les totaux
     window.viewPatientDetail(patientId);
     loadUpcomingRDV();
   }
 };
 
-// 5. Enregistrer le compte-rendu de la séance
+// 5. Enregistrer le compte-rendu
 window.saveCompteRendu = async function(rdvId, patientId) {
   const crValue = document.getElementById(`cr-${rdvId}`)?.value.trim() || '';
 
@@ -206,12 +210,12 @@ window.closePatientDetailModal = function() {
   document.getElementById('modal-patient-detail')?.classList.add('hidden');
 };
 
-// 6. Action ➕ : Pré-remplir la séance pour un patient
+// 6. Action ➕ : Pré-remplir la séance
 window.addRdvForPatient = async function(patientId) {
   window.closePatientsModal();
   hideAllForms();
   await loadPatientsDropdowns();
-  
+
   const select = document.getElementById('rdv-patient');
   if (select) select.value = patientId;
 
@@ -249,7 +253,7 @@ async function loadPatientsDropdowns() {
   if (deleteSelect) deleteSelect.innerHTML = optionsHTML;
 }
 
-// 8. Chargement de la liste des rendez-vous à venir
+// 8. Chargement des rendez-vous à venir
 async function loadUpcomingRDV() {
   const container = document.getElementById('upcoming-rdv-list');
   if (!container || !supabaseClient) return;
@@ -398,6 +402,15 @@ async function checkAuth() {
 document.addEventListener('DOMContentLoaded', () => {
   checkAuth();
 
+  // Mise à jour automatique du tarif au changement de motif
+  document.getElementById('rdv-motif')?.addEventListener('change', (e) => {
+    const selectedMotif = e.target.value;
+    const tarifInput = document.getElementById('rdv-tarif');
+    if (tarifInput && TARIFS_MOTIFS[selectedMotif] !== undefined) {
+      tarifInput.value = TARIFS_MOTIFS[selectedMotif];
+    }
+  });
+
   document.getElementById('nav-patients-btn')?.addEventListener('click', (e) => {
     e.preventDefault();
     switchNav('patients');
@@ -481,12 +494,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Création d'un RDV avec gestion de tarif à 0 si Annulée
+  // Enregistrement de la séance
   document.getElementById('rdv-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const patient_id = document.getElementById('rdv-patient').value;
     const date_heure = document.getElementById('rdv-datetime').value;
-    const motif = document.getElementById('rdv-motif').value.trim();
+    const motif = document.getElementById('rdv-motif').value;
     let tarif = parseFloat(document.getElementById('rdv-tarif').value) || 0;
     const compte_rendu = document.getElementById('rdv-compte-rendu')?.value.trim() || null;
 
