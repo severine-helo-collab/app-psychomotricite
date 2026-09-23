@@ -7,7 +7,7 @@ if (typeof supabase !== 'undefined') {
 }
 
 // 1. Ouvrir la modale de la liste des patients par ordre alphabétique
-async function openPatientsModal() {
+window.openPatientsModal = async function() {
   const container = document.getElementById('modal-patients-body');
   const modal = document.getElementById('modal-patients-list');
   if (!container || !modal || !supabaseClient) return;
@@ -40,14 +40,14 @@ async function openPatientsModal() {
       </div>
     </div>
   `).join('');
-}
+};
 
-function closePatientsModal() {
+window.closePatientsModal = function() {
   document.getElementById('modal-patients-list')?.classList.add('hidden');
-}
+};
 
 // 2. Voir la fiche du patient
-async function viewPatientDetail(patientId) {
+window.viewPatientDetail = async function(patientId) {
   const modal = document.getElementById('modal-patient-detail');
   const title = document.getElementById('patient-detail-title');
   const body = document.getElementById('patient-detail-body');
@@ -68,7 +68,6 @@ async function viewPatientDetail(patientId) {
   }
 
   title.textContent = `Fiche de ${patient.prenom} ${patient.nom.toUpperCase()}`;
-
   const dobStr = patient.date_naissance ? new Date(patient.date_naissance).toLocaleDateString('fr-FR') : 'Non renseignée';
 
   body.innerHTML = `
@@ -80,15 +79,15 @@ async function viewPatientDetail(patientId) {
       <p><strong>Email :</strong> ${patient.email || 'Non renseigné'}</p>
     </div>
   `;
-}
+};
 
-function closePatientDetailModal() {
+window.closePatientDetailModal = function() {
   document.getElementById('modal-patient-detail')?.classList.add('hidden');
-}
+};
 
 // 3. Action ➕ : Ouvrir le formulaire de RDV pré-rempli pour ce patient
-async function addRdvForPatient(patientId) {
-  closePatientsModal();
+window.addRdvForPatient = async function(patientId) {
+  window.closePatientsModal();
   hideAllForms();
   await loadPatientsDropdowns();
   
@@ -96,21 +95,21 @@ async function addRdvForPatient(patientId) {
   if (select) select.value = patientId;
 
   document.getElementById('form-new-rdv-container')?.classList.remove('hidden');
-}
+};
 
 // 4. Action ❌ : Supprimer le patient depuis la modale
-async function deletePatientModal(patientId, patientName) {
+window.deletePatientModal = async function(patientId, patientName) {
   if (confirm(`Êtes-vous sûre de vouloir supprimer le patient "${patientName}" et tous ses rendez-vous associés ?`)) {
     const { error } = await supabaseClient.from('patients').delete().eq('id', patientId);
     if (error) {
       alert("Erreur : " + error.message);
     } else {
       alert("Patient supprimé.");
-      openPatientsModal();
+      window.openPatientsModal();
       loadUpcomingRDV();
     }
   }
-}
+};
 
 // 5. Remplir les menus déroulants des patients
 async function loadPatientsDropdowns() {
@@ -131,7 +130,7 @@ async function loadPatientsDropdowns() {
   if (deleteSelect) deleteSelect.innerHTML = optionsHTML;
 }
 
-// 6. Chargement des prochains rendez-vous programmés
+// 6. Chargement des prochains rendez-vous programmés (RDV cliquable)
 async function loadUpcomingRDV() {
   const container = document.getElementById('upcoming-rdv-list');
   if (!container || !supabaseClient) return;
@@ -140,7 +139,7 @@ async function loadUpcomingRDV() {
 
   const { data: rdvs, error } = await supabaseClient
     .from('rendez_vous')
-    .select('id, date_heure, motif, tarif, statut, patients(nom, prenom)')
+    .select('id, patient_id, date_heure, motif, tarif, statut, patients(nom, prenom)')
     .gte('date_heure', now)
     .order('date_heure', { ascending: true });
 
@@ -161,7 +160,7 @@ async function loadUpcomingRDV() {
     const badgeClass = r.statut === 'Réglé' ? 'regle' : (r.statut === 'Annulé' ? 'annule' : 'attente');
 
     return `
-      <div class="rdv-item">
+      <div class="rdv-item clickable-rdv" onclick="viewPatientDetail('${r.patient_id}')" title="Cliquer pour voir la fiche patient">
         <div class="rdv-title">${dateStr} à ${timeStr} - ${r.patients ? r.patients.nom.toUpperCase() + ' ' + r.patients.prenom : 'Patient inconnu'}</div>
         <div class="rdv-info">
           Motif : ${r.motif} | Tarif : ${r.tarif} € | Statut : <span class="badge ${badgeClass}">${r.statut}</span>
@@ -296,9 +295,10 @@ document.addEventListener('DOMContentLoaded', () => {
   checkAuth();
 
   // Navigation gauche : Clic sur Patients ouvre la fenêtre modale
-  document.getElementById('nav-patients-btn')?.addEventListener('click', () => {
+  document.getElementById('nav-patients-btn')?.addEventListener('click', (e) => {
+    e.preventDefault();
     switchNav('patients');
-    openPatientsModal();
+    window.openPatientsModal();
   });
 
   document.getElementById('nav-compta-btn')?.addEventListener('click', () => switchNav('compta'));
