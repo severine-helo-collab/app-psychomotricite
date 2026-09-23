@@ -1,5 +1,6 @@
 :root {
   --primary: #2c5282;
+  --primary-hover: #1a365d;
   --bg-color: #f7fafc;
   --card-bg: #ffffff;
   --text-color: #2d3748;
@@ -23,7 +24,7 @@ body {
 }
 
 .container {
-  max-width: 500px;
+  max-width: 500px; /* Force un affichage centré sur une seule colonne */
   width: 100%;
 }
 
@@ -82,7 +83,7 @@ button {
   background-color: var(--primary);
   color: white;
   border: none;
-  padding: 0.6rem 1.2rem;
+  padding: 0.65rem 1.2rem;
   border-radius: 4px;
   font-size: 0.95rem;
   font-weight: 600;
@@ -90,7 +91,16 @@ button {
   width: 100%;
 }
 
-/* Règle absolue de masquage */
+button:hover {
+  background-color: var(--primary-hover);
+}
+
+button.btn-secondary {
+  background-color: #cbd5e0;
+  color: #4a5568;
+}
+
+/* Règle stricte pour masquer le tableau de bord avant connexion */
 .hidden {
   display: none !important;
 }
