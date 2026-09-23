@@ -405,12 +405,14 @@ async function checkAuth() {
 document.addEventListener('DOMContentLoaded', () => {
   checkAuth();
 
-  // Mise à jour automatique du tarif au changement de motif
-  document.getElementById('rdv-motif')?.addEventListener('change', (e) => {
-    const selectedMotif = e.target.value;
-    const tarifInput = document.getElementById('rdv-tarif');
-    if (tarifInput && TARIFS_MOTIFS[selectedMotif] !== undefined) {
-      tarifInput.value = TARIFS_MOTIFS[selectedMotif];
+  // Écouteur global pour la mise à jour automatique du tarif au changement de motif
+  document.addEventListener('change', (e) => {
+    if (e.target && e.target.id === 'rdv-motif') {
+      const selectedMotif = e.target.value;
+      const tarifInput = document.getElementById('rdv-tarif');
+      if (tarifInput && TARIFS_MOTIFS[selectedMotif] !== undefined) {
+        tarifInput.value = TARIFS_MOTIFS[selectedMotif];
+      }
     }
   });
 
