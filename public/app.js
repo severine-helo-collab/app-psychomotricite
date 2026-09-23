@@ -166,7 +166,7 @@ function hideAllForms() {
   document.getElementById('form-new-rdv-container')?.classList.add('hidden');
 }
 
-// Basculer l'affichage (Patients vs Comptabilité)
+// Basculer l'affichage (Vue principale vs Comptabilité)
 function switchNav(view) {
   const patientsBtn = document.getElementById('nav-patients-btn');
   const comptaBtn = document.getElementById('nav-compta-btn');
@@ -180,7 +180,8 @@ function switchNav(view) {
     comptaBtn.classList.remove('active');
     patientsSection.classList.remove('hidden');
     comptaSection.classList.add('hidden');
-    loadPatientsList();
+    
+    // On charge uniquement la liste des prochains rendez-vous
     loadUpcomingRDV();
   } else {
     comptaBtn.classList.add('active');
