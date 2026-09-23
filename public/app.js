@@ -10,6 +10,32 @@ if (typeof supabase !== 'undefined') {
   console.error("Le SDK Supabase n'est pas chargé depuis le CDN.");
 }
 
+// Charger la liste des patients dans le sélecteur du formulaire RDV
+async function loadPatientsDropdown() {
+  const patientSelect = document.getElementById('rdv-patient');
+  if (!patientSelect || !supabaseClient) return;
+
+  const { data: patients, error } = await supabaseClient
+    .from('patients')
+    .select('id, nom, prenom')
+    .order('nom', { ascending: true });
+
+  if (error) {
+    console.error("Erreur lors de la récupération des patients :", error.message);
+    return;
+  }
+
+  // Vider et réinitialiser la liste
+  patientSelect.innerHTML = '<option value="">-- Choisir un patient --</option>';
+
+  patients.forEach(patient => {
+    const option = document.createElement('option');
+    option.value = patient.id;
+    option.textContent = `${patient.nom} ${patient.prenom}`;
+    patientSelect.appendChild(option);
+  });
+}
+
 // Fonction d'affichage conditionnel
 async function checkAuth() {
   const authSection = document.getElementById('auth-section');
@@ -29,6 +55,8 @@ async function checkAuth() {
     // Connecté
     authSection.classList.add('hidden');
     dashboard.classList.remove('hidden');
+    // Charger les patients pour les rendez-vous
+    loadPatientsDropdown();
   } else {
     // Non connecté
     authSection.classList.remove('hidden');
@@ -36,11 +64,11 @@ async function checkAuth() {
   }
 }
 
-// Gestion des évènements au chargement
+// Gestion des événements au chargement du DOM
 document.addEventListener('DOMContentLoaded', () => {
   checkAuth();
 
-  // 1. Gestion du formulaire de connexion
+  // 1. Connexion
   const authForm = document.getElementById('auth-form');
   if (authForm) {
     authForm.addEventListener('submit', async (e) => {
@@ -54,7 +82,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      const { data, error } = await supabaseClient.auth.signInWithPassword({
+      const { error } = await supabaseClient.auth.signInWithPassword({
         email: email,
         password: password,
       });
@@ -67,7 +95,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // 2. Gestion du bouton de déconnexion
+  // 2. Déconnexion
   const logoutBtn = document.getElementById('logout-btn');
   if (logoutBtn) {
     logoutBtn.addEventListener('click', async () => {
@@ -77,7 +105,74 @@ document.addEventListener('DOMContentLoaded', () => {
       if (error) {
         alert("Erreur lors de la déconnexion : " + error.message);
       } else {
-        checkAuth(); // Met à jour l'affichage pour revenir à l'écran de connexion
+        checkAuth();
+      }
+    });
+  }
+
+  // 3. Enregistrement d'un nouveau patient
+  const patientForm = document.getElementById('patient-form');
+  if (patientForm) {
+    patientForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const nom = document.getElementById('patient-nom').value.trim();
+      const prenom = document.getElementById('patient-prenom').value.trim();
+      const dob = document.getElementById('patient-dob').value;
+      const tel = document.getElementById('patient-tel').value.trim();
+      const email = document.getElementById('patient-email').value.trim();
+
+      const { data, error } = await supabaseClient
+        .from('patients')
+        .insert([
+          { nom: nom, prenom: prenom, date_naissance: dob, telephone: tel, email: email }
+        ]);
+
+      if (error) {
+        alert("Erreur lors de l'enregistrement du patient : " + error.message);
+      } else {
+        alert("Patient enregistré avec succès !");
+        patientForm.reset();
+        // Mettre à jour la liste déroulante des patients dans RDV
+        loadPatientsDropdown();
+      }
+    });
+  }
+
+  // 4. Enregistrement d'un rendez-vous
+  const rdvForm = document.getElementById('rdv-form');
+  if (rdvForm) {
+    rdvForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const patientId = document.getElementById('rdv-patient').value;
+      const datetime = document.getElementById('rdv-datetime').value;
+      const motif = document.getElementById('rdv-motif').value.trim();
+      const tarif = document.getElementById('rdv-tarif').value;
+      const statut = document.getElementById('rdv-statut').value;
+
+      if (!patientId) {
+        alert("Veuillez sélectionner un patient.");
+        return;
+      }
+
+      const { data, error } = await supabaseClient
+        .from('rendez_vous')
+        .insert([
+          { 
+            patient_id: patientId, 
+            date_heure: datetime, 
+            motif: motif, 
+            tarif: parseFloat(tarif), 
+            statut: statut 
+          }
+        ]);
+
+      if (error) {
+        alert("Erreur lors de l'enregistrement du RDV : " + error.message);
+      } else {
+        alert("Rendez-vous programmé avec succès !");
+        rdvForm.reset();
       }
     });
   }
