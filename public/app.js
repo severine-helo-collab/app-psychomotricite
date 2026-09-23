@@ -120,7 +120,10 @@ document.addEventListener('DOMContentLoaded', () => {
       const prenom = document.getElementById('patient-prenom').value.trim();
       const dob = document.getElementById('patient-dob').value;
       const tel = document.getElementById('patient-tel').value.trim();
-      const email = document.getElementById('patient-email').value.trim();
+      
+      // Conversion de l'email vide en null pour éviter les doublons
+      const emailVal = document.getElementById('patient-email').value.trim();
+      const email = emailVal !== "" ? emailVal : null;
 
       const { data, error } = await supabaseClient
         .from('patients')
