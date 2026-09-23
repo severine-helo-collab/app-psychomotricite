@@ -6,6 +6,9 @@
   --text-color: #2d3748;
   --border-color: #e2e8f0;
   --radius: 8px;
+  --success: #38a169;
+  --danger: #e53e3e;
+  --warning: #dd6b20;
 }
 
 * {
@@ -24,7 +27,7 @@ body {
 }
 
 .container {
-  max-width: 500px; /* Force un affichage centré sur une seule colonne */
+  max-width: 1000px;
   width: 100%;
 }
 
@@ -49,8 +52,8 @@ header p {
   padding: 1.5rem;
   border-radius: var(--radius);
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  margin-bottom: 1.5rem;
   border: 1px solid var(--border-color);
+  margin-bottom: 1.5rem;
 }
 
 .card h2 {
@@ -59,6 +62,73 @@ header p {
   color: var(--primary);
 }
 
+/* Layout général */
+.dashboard-layout {
+  display: flex;
+  gap: 1.5rem;
+  align-items: flex-start;
+}
+
+.sidebar {
+  flex: 0 0 220px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 250px;
+}
+
+.nav-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.nav-btn {
+  background-color: transparent;
+  color: var(--text-color);
+  border: 1px solid var(--border-color);
+  text-align: left;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.nav-btn.active {
+  background-color: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
+.main-content {
+  flex: 1;
+}
+
+/* En-tête des actions rapide */
+.actions-header {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding: 1rem;
+}
+
+.btn-action {
+  flex: 1;
+  min-width: 150px;
+  padding: 0.65rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border-radius: 6px;
+  border: none;
+  background-color: var(--primary);
+  color: white;
+  cursor: pointer;
+}
+
+.btn-action.btn-danger { background-color: var(--danger); }
+.btn-action.btn-success { background-color: var(--success); }
+
+/* Formulaires */
 .form-group {
   margin-bottom: 1rem;
   display: flex;
@@ -79,6 +149,12 @@ input, select {
   width: 100%;
 }
 
+.btn-group-inline {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
 button {
   background-color: var(--primary);
   color: white;
@@ -88,11 +164,6 @@ button {
   font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
-  width: 100%;
-}
-
-button:hover {
-  background-color: var(--primary-hover);
 }
 
 button.btn-secondary {
@@ -100,7 +171,89 @@ button.btn-secondary {
   color: #4a5568;
 }
 
-/* Règle stricte pour masquer le tableau de bord avant connexion */
-.hidden {
-  display: none !important;
+button.btn-danger { background-color: var(--danger); }
+
+.warning-text {
+  color: var(--danger);
+  font-size: 0.85rem;
+  margin-bottom: 1rem;
 }
+
+/* Grille des patients & RDV */
+.patients-grid, .rdv-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.patient-item, .rdv-item {
+  padding: 0.85rem;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background-color: #f8fafc;
+}
+
+.patient-name, .rdv-title {
+  font-weight: bold;
+  color: var(--primary);
+  font-size: 1.05rem;
+}
+
+.patient-info, .rdv-info {
+  font-size: 0.85rem;
+  color: #4a5568;
+  margin-top: 0.25rem;
+}
+
+.badge {
+  display: inline-block;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: bold;
+  color: white;
+}
+.badge.regle { background-color: var(--success); }
+.badge.attente { background-color: var(--warning); }
+.badge.annule { background-color: #a0aec0; }
+
+/* Comptabilité */
+.compta-summary-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
+
+.summary-card {
+  background: #f7fafc;
+  border: 1px solid var(--border-color);
+  padding: 1rem;
+  border-radius: 6px;
+  text-align: center;
+}
+
+.summary-card span { font-size: 0.85rem; color: #718096; }
+.summary-card strong { display: block; font-size: 1.4rem; color: var(--primary); margin-top: 0.3rem; }
+.summary-card.success strong { color: var(--success); }
+.summary-card.warning strong { color: var(--warning); }
+
+.compta-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+  font-size: 0.9rem;
+}
+
+.compta-table th, .compta-table td {
+  padding: 0.75rem;
+  border: 1px solid var(--border-color);
+  text-align: left;
+}
+
+.compta-table th {
+  background-color: #edf2f7;
+  color: var(--primary);
+}
+
+.hidden { display: none !important; }
