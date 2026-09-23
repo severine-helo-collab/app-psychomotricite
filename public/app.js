@@ -6,37 +6,7 @@ if (typeof supabase !== 'undefined') {
   supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 }
 
-// 1. Chargement des patients (Ordre alphabétique)
-async function loadPatientsList() {
-  const container = document.getElementById('patients-list');
-  if (!container || !supabaseClient) return;
-
-  const { data: patients, error } = await supabaseClient
-    .from('patients')
-    .select('*')
-    .order('nom', { ascending: true });
-
-  if (error) {
-    container.innerHTML = `<p style="color:red;">Erreur : ${error.message}</p>`;
-    return;
-  }
-
-  if (patients.length === 0) {
-    container.innerHTML = '<p>Aucun patient enregistré.</p>';
-    return;
-  }
-
-  container.innerHTML = patients.map(p => `
-    <div class="patient-item">
-      <div class="patient-name">${p.nom.toUpperCase()} ${p.prenom}</div>
-      <div class="patient-info">
-        📅 Né(e) le : ${p.date_naissance ? new Date(p.date_naissance).toLocaleDateString('fr-FR') : 'N/C'} | 📞 ${p.telephone || 'N/C'} | ✉️ ${p.email || 'N/C'}
-      </div>
-    </div>
-  `).join('');
-}
-
-// 2. Remplir les menus déroulants des patients
+// 1. Remplir les menus déroulants des patients
 async function loadPatientsDropdowns() {
   if (!supabaseClient) return;
 
@@ -55,7 +25,7 @@ async function loadPatientsDropdowns() {
   if (deleteSelect) deleteSelect.innerHTML = optionsHTML;
 }
 
-// 3. Chargement des prochains rendez-vous programmés
+// 2. Chargement des prochains rendez-vous programmés
 async function loadUpcomingRDV() {
   const container = document.getElementById('upcoming-rdv-list');
   if (!container || !supabaseClient) return;
@@ -95,7 +65,7 @@ async function loadUpcomingRDV() {
   }).join('');
 }
 
-// 4. Chargement de la Comptabilité Mensuelle
+// 3. Chargement de la Comptabilité Mensuelle
 async function loadComptaMonth(yearMonth) {
   const tableBody = document.getElementById('compta-table-body');
   if (!tableBody || !supabaseClient) return;
@@ -286,7 +256,6 @@ document.addEventListener('DOMContentLoaded', () => {
       alert("Patient enregistré !");
       document.getElementById('patient-form').reset();
       hideAllForms();
-      loadPatientsList();
     }
   });
 
@@ -302,7 +271,6 @@ document.addEventListener('DOMContentLoaded', () => {
       else {
         alert("Patient supprimé.");
         hideAllForms();
-        loadPatientsList();
         loadUpcomingRDV();
       }
     }
