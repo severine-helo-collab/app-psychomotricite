@@ -46,7 +46,30 @@ window.closePatientsModal = function() {
   document.getElementById('modal-patients-list')?.classList.add('hidden');
 };
 
-// 2. Voir la fiche du patient (avec historique des séances et totalisation)
+// Fonction utilitaire pour générer la carte HTML d'une séance
+function renderSeanceCard(r, indexNumber) {
+  const dt = new Date(r.date_heure);
+  const dateStr = dt.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  const timeStr = dt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  const badgeClass = r.statut === 'Réglé' ? 'regle' : (r.statut === 'Annulé' ? 'annule' : 'attente');
+
+  return `
+    <div style="background:#fff; border: 1px solid #e0e0e0; border-left: 4px solid #007bff; border-radius:6px; padding:12px; margin-bottom:10px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+      <div style="font-weight:bold; font-size:0.95rem; color:#2c3e50; display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+        <span>🔢 Séance n°${indexNumber} — 📅 ${dateStr} à ${timeStr}</span>
+        <span class="badge ${badgeClass}">${r.statut}</span>
+      </div>
+      <div style="font-size:0.85rem; color:#555; margin-bottom:6px;">
+        <strong>Motif :</strong> ${r.motif || 'Non renseigné'} | <strong>Tarif :</strong> ${r.tarif || 0} €
+      </div>
+      <div style="font-size:0.85rem; color:#333; background:#f8f9fa; padding:8px; border-radius:4px; border: 1px solid #eee;">
+        <strong>Compte-rendu :</strong> ${r.compte_rendu ? `<span style="white-space:pre-wrap;">${r.compte_rendu}</span>` : '<em>Aucun compte-rendu rédigé.</em>'}
+      </div>
+    </div>
+  `;
+}
+
+// 2. Voir la fiche du patient (détail complet avec numérotation, séances passées/à venir et compte-rendu)
 window.viewPatientDetail = async function(patientId) {
   const modal = document.getElementById('modal-patient-detail');
   const title = document.getElementById('patient-detail-title');
@@ -68,52 +91,53 @@ window.viewPatientDetail = async function(patientId) {
     return;
   }
 
-  // Récupération de l'historique des séances du patient
+  // Récupération de toutes les séances triées par date croissante pour la numérotation
   const { data: rdvs, error: errRdvs } = await supabaseClient
     .from('rendez_vous')
     .select('*')
     .eq('patient_id', patientId)
-    .order('date_heure', { ascending: false });
+    .order('date_heure', { ascending: true });
 
   title.textContent = `Fiche de ${patient.prenom} ${patient.nom.toUpperCase()}`;
   const dobStr = patient.date_naissance ? new Date(patient.date_naissance).toLocaleDateString('fr-FR') : 'Non renseignée';
+
+  if (errRdvs) {
+    body.innerHTML = `<p style="color:red;">Erreur lors du chargement des séances.</p>`;
+    return;
+  }
+
+  const now = new Date();
+  
+  // Associer à chaque séance son numéro d'ordre chronologique (Séance 1, Séance 2, ...)
+  const rdvsWithNum = (rdvs || []).map((r, idx) => ({ ...r, number: idx + 1 }));
+
+  // Séparation en séances passées et à venir
+  const seancesPassees = rdvsWithNum.filter(r => new Date(r.date_heure) < now).reverse(); // plus récentes en premier
+  const seancesAvenir = rdvsWithNum.filter(r => new Date(r.date_heure) >= now); // chronologique
 
   // Calcul du nombre de séances et du montant total
   const totalSeances = rdvs ? rdvs.length : 0;
   const montantTotal = rdvs ? rdvs.reduce((sum, r) => sum + (Number(r.tarif) || 0), 0) : 0;
 
-  // HTML pour la liste des séances
-  let seancesHTML = '';
-  if (errRdvs) {
-    seancesHTML = `<p style="color:red;">Erreur lors du chargement des séances.</p>`;
-  } else if (!rdvs || rdvs.length === 0) {
-    seancesHTML = '<p>Aucune séance enregistrée pour ce patient.</p>';
+  // HTML Séances à venir
+  let avenirHTML = '';
+  if (seancesAvenir.length === 0) {
+    avenirHTML = '<p style="font-size:0.85rem; color:#777;">Aucune séance à venir.</p>';
   } else {
-    seancesHTML = rdvs.map(r => {
-      const dt = new Date(r.date_heure);
-      const dateStr = dt.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-      const timeStr = dt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-      const badgeClass = r.statut === 'Réglé' ? 'regle' : (r.statut === 'Annulé' ? 'annule' : 'attente');
+    avenirHTML = seancesAvenir.map(r => renderSeanceCard(r, r.number)).join('');
+  }
 
-      return `
-        <div style="background:#f8f9fa; border: 1px solid #e0e0e0; border-radius:6px; padding:10px; margin-bottom:10px;">
-          <div style="font-weight:bold; font-size:0.9rem; color:#333; display:flex; justify-between; align-items:center; margin-bottom:4px;">
-            <span>📅 ${dateStr} à ${timeStr}</span>
-            <span class="badge ${badgeClass}">${r.statut}</span>
-          </div>
-          <div style="font-size:0.85rem; color:#555; margin-bottom:4px;">
-            <strong>Motif :</strong> ${r.motif || 'Non renseigné'} | <strong>Tarif :</strong> ${r.tarif || 0} €
-          </div>
-          <div style="font-size:0.85rem; color:#444; background:#fff; padding:6px; border-radius:4px; border-left: 3px solid #007bff; margin-top:4px;">
-            <strong>Compte-rendu :</strong> ${r.compte_rendu || '<em>Aucun compte-rendu saisi.</em>'}
-          </div>
-        </div>
-      `;
-    }).join('');
+  // HTML Séances passées
+  let passeesHTML = '';
+  if (seancesPassees.length === 0) {
+    passeesHTML = '<p style="font-size:0.85rem; color:#777;">Aucune séance passée.</p>';
+  } else {
+    passeesHTML = seancesPassees.map(r => renderSeanceCard(r, r.number)).join('');
   }
 
   body.innerHTML = `
-    <div style="display: flex; flex-direction: column; gap: 0.5rem; font-size: 0.95rem; margin-bottom:1rem;">
+    <!-- Infos Générales du Patient -->
+    <div style="display: flex; flex-direction: column; gap: 0.4rem; font-size: 0.95rem; margin-bottom:1rem;">
       <p><strong>Nom :</strong> ${patient.nom.toUpperCase()}</p>
       <p><strong>Prénom :</strong> ${patient.prenom}</p>
       <p><strong>Date de naissance :</strong> ${dobStr}</p>
@@ -121,15 +145,29 @@ window.viewPatientDetail = async function(patientId) {
       <p><strong>Email :</strong> ${patient.email || 'Non renseigné'}</p>
     </div>
 
-    <hr style="border:0; border-top:1px solid #ddd; margin: 15px 0;" />
+    <hr style="border:0; border-top:1px solid #ddd; margin: 12px 0;" />
 
-    <h4 style="margin-bottom:10px; color:#2c3e50;">📋 Historique des séances</h4>
-    <div style="max-height: 250px; overflow-y: auto; padding-right:5px;">
-      ${seancesHTML}
+    <div style="max-height: 380px; overflow-y: auto; padding-right: 5px;">
+      <!-- Séances à venir -->
+      <h4 style="margin-bottom:8px; color:#007bff; display:flex; align-items:center; gap:6px;">
+        🔮 Séances à venir (${seancesAvenir.length})
+      </h4>
+      <div style="margin-bottom:15px;">
+        ${avenirHTML}
+      </div>
+
+      <!-- Séances passées -->
+      <h4 style="margin-bottom:8px; color:#2c3e50; display:flex; align-items:center; gap:6px;">
+        📜 Séances passées (${seancesPassees.length})
+      </h4>
+      <div>
+        ${passeesHTML}
+      </div>
     </div>
 
-    <hr style="border:0; border-top:1px solid #ddd; margin: 15px 0;" />
+    <hr style="border:0; border-top:1px solid #ddd; margin: 12px 0;" />
 
+    <!-- Total des séances et montant global -->
     <div style="background:#e9ecef; padding: 12px; border-radius: 6px; font-weight:bold; font-size:0.95rem; display:flex; justify-content:space-between; align-items:center;">
       <span>Total séances : <span style="color:#007bff;">${totalSeances}</span></span>
       <span>Montant total : <span style="color:#28a745;">${montantTotal.toFixed(2)} €</span></span>
@@ -428,7 +466,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Soumission : Nouveau RDV avec enregistrement du compte-rendu
   document.getElementById('rdv-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const patient_id = document.getElementById('rdv-patient').value;
