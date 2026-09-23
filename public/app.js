@@ -2,69 +2,60 @@
 const SUPABASE_URL = "https://iyxurkbceiirjdigcyak.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml5eHVya2JjZWlpcmpkaWdjeWFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkwNDYzODQsImV4cCI6MjEwNDYyMjM4NH0.MGBADlkxP307mbUvU_07OEhN5sfqv9_wSTqIP5AVK-s"; 
 
-// 2. Initialiser le client Supabase
-const supabaseClient = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
-
 // Initialisation du client
-const supabaseClient = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
+let supabaseClient = null;
+if (typeof supabase !== 'undefined') {
+  supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+} else {
+  console.error("Le SDK Supabase n'est pas chargé depuis le CDN.");
+}
 
-// Fonction de vérification de l'authentification
+// Fonction d'affichage conditionnel
 async function checkAuth() {
   const authSection = document.getElementById('auth-section');
   const dashboard = document.getElementById('dashboard');
 
-  if (!authSection || !dashboard) {
-    console.error("Éléments 'auth-section' ou 'dashboard' introuvables.");
-    return;
-  }
+  if (!authSection || !dashboard) return;
 
-  // Si Supabase n'est pas prêt, on affiche par sécurité le formulaire de connexion
   if (!supabaseClient) {
-    console.error("Le SDK Supabase n'a pas pu être chargé.");
     authSection.classList.remove('hidden');
     dashboard.classList.add('hidden');
     return;
   }
 
-  try {
-    const { data: { session }, error } = await supabaseClient.auth.getSession();
+  const { data: { session } } = await supabaseClient.auth.getSession();
 
-    if (error) {
-      console.error("Erreur lors de la récupération de la session :", error);
-    }
-
-    if (session) {
-      // Connecté : cacher la connexion, afficher le tableau de bord
-      authSection.classList.add('hidden');
-      dashboard.classList.remove('hidden');
-    } else {
-      // Non connecté : afficher la connexion, cacher le tableau de bord
-      authSection.classList.remove('hidden');
-      dashboard.classList.add('hidden');
-    }
-  } catch (err) {
-    console.error("Erreur inattendue :", err);
-    // Afficher la connexion par défaut en cas d'erreur
+  if (session) {
+    // Connecté
+    authSection.classList.add('hidden');
+    dashboard.classList.remove('hidden');
+  } else {
+    // Non connecté
     authSection.classList.remove('hidden');
     dashboard.classList.add('hidden');
   }
 }
 
-// Initialisation au chargement de la page
+// Gestion des évènements au chargement
 document.addEventListener('DOMContentLoaded', () => {
   checkAuth();
 
-  // Gestionnaire de connexion
   const authForm = document.getElementById('auth-form');
   if (authForm) {
     authForm.addEventListener('submit', async (e) => {
       e.preventDefault();
+      
       const email = document.getElementById('auth-email').value.trim();
       const password = document.getElementById('auth-password').value;
 
+      if (!supabaseClient) {
+        alert("Erreur : la connexion à Supabase a échoué.");
+        return;
+      }
+
       const { data, error } = await supabaseClient.auth.signInWithPassword({
         email: email,
-        password: password
+        password: password,
       });
 
       if (error) {
