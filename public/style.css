@@ -1,16 +1,21 @@
 :root {
-  --primary: #2c5282;
-  --primary-hover: #1a365d;
-  --bg-color: #f7fafc;
+  /* Palette de couleurs basée sur le logo */
+  --primary: #13525B;        /* Vert canard / Bleu pétrole principal */
+  --primary-hover: #0E3D43;
+  --bg-color: #F7F4EB;       /* Fond crème doux */
   --card-bg: #ffffff;
-  --text-color: #2d3748;
+  --text-color: #13525B;
   --border-color: #e2e8f0;
   --radius: 8px;
-  --success: #38a169;
-  --danger: #e53e3e;
-  --warning: #dd6b20;
-  --gold: #d4af37;
-  --gold-hover: #b89628;
+  
+  --success: #2E8B73;       /* Vert sauge / Menthe */
+  --success-hover: #226856;
+  --danger: #E07A5F;        /* Terracotta / Pêche */
+  --danger-hover: #C55E44;
+  --warning: #D99B38;       /* Jaune ocre / Moutarde */
+  
+  --gold: #D99B38;
+  --gold-hover: #B8802A;
 }
 
 * {
@@ -45,7 +50,7 @@ h1 {
 }
 
 header p {
-  color: #718096;
+  color: #557077;
   font-size: 0.95rem;
 }
 
@@ -53,7 +58,7 @@ header p {
   background: var(--card-bg);
   padding: 1.5rem;
   border-radius: var(--radius);
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
   border: 1px solid var(--border-color);
   margin-bottom: 1.5rem;
 }
@@ -94,6 +99,11 @@ header p {
   border-radius: 6px;
   cursor: pointer;
   font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.nav-btn:hover {
+  background-color: rgba(19, 82, 91, 0.08);
 }
 
 .nav-btn.active {
@@ -102,7 +112,7 @@ header p {
   border-color: var(--primary);
 }
 
-/* Bouton Patients spécifique en couleur OR */
+/* Bouton Patients spécifique en couleur OCRE / MOUTARDE */
 #nav-patients-btn {
   background-color: var(--gold);
   color: #ffffff;
@@ -118,7 +128,7 @@ header p {
   background-color: var(--gold);
   color: #ffffff;
   border-color: var(--gold);
-  box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.4);
+  box-shadow: 0 0 0 2px rgba(217, 155, 56, 0.4);
 }
 
 .main-content {
@@ -144,10 +154,18 @@ header p {
   background-color: var(--primary);
   color: white;
   cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.btn-action:hover {
+  background-color: var(--primary-hover);
 }
 
 .btn-action.btn-danger { background-color: var(--danger); }
+.btn-action.btn-danger:hover { background-color: var(--danger-hover); }
+
 .btn-action.btn-success { background-color: var(--success); }
+.btn-action.btn-success:hover { background-color: var(--success-hover); }
 
 /* Formulaires */
 .form-group {
@@ -160,6 +178,7 @@ label {
   font-size: 0.875rem;
   font-weight: 600;
   margin-bottom: 0.35rem;
+  color: var(--primary);
 }
 
 input, select {
@@ -168,6 +187,11 @@ input, select {
   border-radius: 4px;
   font-size: 1rem;
   width: 100%;
+}
+
+input:focus, select:focus {
+  outline: none;
+  border-color: var(--primary);
 }
 
 .btn-group-inline {
@@ -185,14 +209,25 @@ button {
   font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+button:hover {
+  background-color: var(--primary-hover);
 }
 
 button.btn-secondary {
-  background-color: #cbd5e0;
-  color: #4a5568;
+  background-color: transparent;
+  color: var(--primary);
+  border: 1.5px solid var(--primary);
+}
+
+button.btn-secondary:hover {
+  background-color: rgba(19, 82, 91, 0.08);
 }
 
 button.btn-danger { background-color: var(--danger); }
+button.btn-danger:hover { background-color: var(--danger-hover); }
 
 .warning-text {
   color: var(--danger);
@@ -211,7 +246,7 @@ button.btn-danger { background-color: var(--danger); }
   padding: 0.85rem;
   border: 1px solid var(--border-color);
   border-radius: 6px;
-  background-color: #f8fafc;
+  background-color: #fcfbf8;
 }
 
 .rdv-title {
@@ -245,7 +280,7 @@ button.btn-danger { background-color: var(--danger); }
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(19, 82, 91, 0.4);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -292,7 +327,7 @@ button.btn-danger { background-color: var(--danger); }
   padding: 0.75rem;
   border: 1px solid var(--border-color);
   border-radius: 6px;
-  background-color: #f8fafc;
+  background-color: #fcfbf8;
 }
 
 .modal-patient-name {
@@ -316,11 +351,11 @@ button.btn-danger { background-color: var(--danger); }
 }
 
 .icon-btn:hover {
-  background-color: #edf2f7;
+  background-color: rgba(19, 82, 91, 0.08);
 }
 
 .icon-btn.danger-icon:hover {
-  background-color: #fed7d7;
+  background-color: #fde8e3;
   border-color: var(--danger);
 }
 
@@ -333,7 +368,7 @@ button.btn-danger { background-color: var(--danger); }
 }
 
 .summary-card {
-  background: #f7fafc;
+  background: #fcfbf8;
   border: 1px solid var(--border-color);
   padding: 1rem;
   border-radius: 6px;
@@ -359,7 +394,7 @@ button.btn-danger { background-color: var(--danger); }
 }
 
 .compta-table th {
-  background-color: #edf2f7;
+  background-color: rgba(19, 82, 91, 0.08);
   color: var(--primary);
 }
 
@@ -369,7 +404,7 @@ button.btn-danger { background-color: var(--danger); }
 }
 
 .clickable-rdv:hover {
-  background-color: #f0f4f8;
+  background-color: rgba(19, 82, 91, 0.05);
   transform: translateY(-1px);
 }
 
@@ -390,7 +425,7 @@ button.btn-danger { background-color: var(--danger); }
 }
 
 .auth-logo {
-  max-width: 225px; /* Taille augmentée de 50% */
+  max-width: 225px;
   height: auto;
   border-radius: 50%;
   object-fit: contain;
