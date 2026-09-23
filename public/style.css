@@ -374,3 +374,24 @@ button.btn-danger { background-color: var(--danger); }
 }
 
 .hidden { display: none !important; }
+
+/* Style et réduction de la section de connexion */
+.auth-card {
+  max-width: 380px;
+  margin: 2rem auto;
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.auth-logo-container {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+.auth-logo {
+  max-width: 150px;
+  height: auto;
+  border-radius: 50%;
+  object-fit: contain;
+}
