@@ -296,7 +296,7 @@ async function loadUpcomingRDV() {
   }).join('');
 }
 
-// 9. Comptabilité Mensuelle
+// 9. Comptabilité Mensuelle (remplacée)
 async function loadComptaMonth(yearMonth) {
   const tableBody = document.getElementById('compta-table-body');
   if (!tableBody || !supabaseClient) return;
@@ -344,9 +344,47 @@ async function loadComptaMonth(yearMonth) {
     }).join('');
   }
 
+  // Mettre à jour les totaux classiques
   document.getElementById('summary-total-count').textContent = rdvs ? rdvs.length : 0;
   document.getElementById('summary-paid-amount').textContent = `${totalPaid.toFixed(2)} €`;
   document.getElementById('summary-pending-amount').textContent = `${totalPending.toFixed(2)} €`;
+
+  // Mettre à jour le bilan financier avec URSSAF et Charges
+  updateBilanCalculs(totalPaid);
+}
+
+// Fonction auxiliaire de calcul du Bilan Financier
+function updateBilanCalculs(totalPaid) {
+  // Charges fixes mensuelles
+  const chargesFixes = {
+    loyer: 430.00,
+    doctolib: 68.00,
+    macsf: 19.90
+  };
+
+  const totalCharges = Object.values(chargesFixes).reduce((sum, val) => sum + val, 0);
+
+  // Taux URSSAF (par défaut 12.1% ACRE 1ère année, ou 21.1% taux plein)
+  const urssafSelect = document.getElementById('urssaf-rate-select');
+  const urssafRate = urssafSelect ? parseFloat(urssafSelect.value) : 0.121;
+
+  const montantUrssaf = totalPaid * urssafRate;
+  const beneficeNet = totalPaid - montantUrssaf - totalCharges;
+
+  // Affichage dans les éléments HTML
+  const caEl = document.getElementById('bilan-ca');
+  const urssafEl = document.getElementById('bilan-urssaf');
+  const chargesEl = document.getElementById('bilan-charges');
+  const netEl = document.getElementById('bilan-net');
+
+  if (caEl) caEl.textContent = `${totalPaid.toFixed(2)} €`;
+  if (urssafEl) urssafEl.textContent = `- ${montantUrssaf.toFixed(2)} € (${(urssafRate * 100).toFixed(1)}%)`;
+  if (chargesEl) chargesEl.textContent = `- ${totalCharges.toFixed(2)} €`;
+
+  if (netEl) {
+    netEl.textContent = `${beneficeNet.toFixed(2)} €`;
+    netEl.style.color = beneficeNet >= 0 ? '#28a745' : '#dc3545';
+  }
 }
 
 function hideAllForms() {
@@ -413,6 +451,14 @@ document.addEventListener('DOMContentLoaded', () => {
       if (tarifInput && TARIFS_MOTIFS[selectedMotif] !== undefined) {
         tarifInput.value = TARIFS_MOTIFS[selectedMotif];
       }
+    }
+  });
+
+  // Écouteur pour recalculer le bilan en cas de changement de taux URSSAF
+  document.getElementById('urssaf-rate-select')?.addEventListener('change', () => {
+    const monthInput = document.getElementById('compta-month-select');
+    if (monthInput && monthInput.value) {
+      loadComptaMonth(monthInput.value);
     }
   });
 
