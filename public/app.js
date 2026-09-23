@@ -6,7 +6,7 @@ if (typeof supabase !== 'undefined') {
   supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 }
 
-// 1. Ouvrir la modale de la liste des patients par ordre alphabétique
+// 1. Ouvrir la modale de la liste des patients
 window.openPatientsModal = async function() {
   const container = document.getElementById('modal-patients-body');
   const modal = document.getElementById('modal-patients-list');
@@ -46,7 +46,7 @@ window.closePatientsModal = function() {
   document.getElementById('modal-patients-list')?.classList.add('hidden');
 };
 
-// 2. Voir la fiche du patient
+// 2. Voir la fiche du patient (avec historique des séances et totalisation)
 window.viewPatientDetail = async function(patientId) {
   const modal = document.getElementById('modal-patient-detail');
   const title = document.getElementById('patient-detail-title');
@@ -56,27 +56,83 @@ window.viewPatientDetail = async function(patientId) {
   modal.classList.remove('hidden');
   body.innerHTML = '<p>Chargement des informations...</p>';
 
-  const { data: patient, error } = await supabaseClient
+  // Récupération des infos du patient
+  const { data: patient, error: errPatient } = await supabaseClient
     .from('patients')
     .select('*')
     .eq('id', patientId)
     .single();
 
-  if (error || !patient) {
+  if (errPatient || !patient) {
     body.innerHTML = `<p style="color:red;">Erreur lors du chargement de la fiche.</p>`;
     return;
   }
 
+  // Récupération de l'historique des séances du patient
+  const { data: rdvs, error: errRdvs } = await supabaseClient
+    .from('rendez_vous')
+    .select('*')
+    .eq('patient_id', patientId)
+    .order('date_heure', { ascending: false });
+
   title.textContent = `Fiche de ${patient.prenom} ${patient.nom.toUpperCase()}`;
   const dobStr = patient.date_naissance ? new Date(patient.date_naissance).toLocaleDateString('fr-FR') : 'Non renseignée';
 
+  // Calcul du nombre de séances et du montant total
+  const totalSeances = rdvs ? rdvs.length : 0;
+  const montantTotal = rdvs ? rdvs.reduce((sum, r) => sum + (Number(r.tarif) || 0), 0) : 0;
+
+  // HTML pour la liste des séances
+  let seancesHTML = '';
+  if (errRdvs) {
+    seancesHTML = `<p style="color:red;">Erreur lors du chargement des séances.</p>`;
+  } else if (!rdvs || rdvs.length === 0) {
+    seancesHTML = '<p>Aucune séance enregistrée pour ce patient.</p>';
+  } else {
+    seancesHTML = rdvs.map(r => {
+      const dt = new Date(r.date_heure);
+      const dateStr = dt.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+      const timeStr = dt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+      const badgeClass = r.statut === 'Réglé' ? 'regle' : (r.statut === 'Annulé' ? 'annule' : 'attente');
+
+      return `
+        <div style="background:#f8f9fa; border: 1px solid #e0e0e0; border-radius:6px; padding:10px; margin-bottom:10px;">
+          <div style="font-weight:bold; font-size:0.9rem; color:#333; display:flex; justify-between; align-items:center; margin-bottom:4px;">
+            <span>📅 ${dateStr} à ${timeStr}</span>
+            <span class="badge ${badgeClass}">${r.statut}</span>
+          </div>
+          <div style="font-size:0.85rem; color:#555; margin-bottom:4px;">
+            <strong>Motif :</strong> ${r.motif || 'Non renseigné'} | <strong>Tarif :</strong> ${r.tarif || 0} €
+          </div>
+          <div style="font-size:0.85rem; color:#444; background:#fff; padding:6px; border-radius:4px; border-left: 3px solid #007bff; margin-top:4px;">
+            <strong>Compte-rendu :</strong> ${r.compte_rendu || '<em>Aucun compte-rendu saisi.</em>'}
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
   body.innerHTML = `
-    <div style="display: flex; flex-direction: column; gap: 0.5rem; font-size: 0.95rem;">
+    <div style="display: flex; flex-direction: column; gap: 0.5rem; font-size: 0.95rem; margin-bottom:1rem;">
       <p><strong>Nom :</strong> ${patient.nom.toUpperCase()}</p>
       <p><strong>Prénom :</strong> ${patient.prenom}</p>
       <p><strong>Date de naissance :</strong> ${dobStr}</p>
       <p><strong>Téléphone :</strong> ${patient.telephone || 'Non renseigné'}</p>
       <p><strong>Email :</strong> ${patient.email || 'Non renseigné'}</p>
+    </div>
+
+    <hr style="border:0; border-top:1px solid #ddd; margin: 15px 0;" />
+
+    <h4 style="margin-bottom:10px; color:#2c3e50;">📋 Historique des séances</h4>
+    <div style="max-height: 250px; overflow-y: auto; padding-right:5px;">
+      ${seancesHTML}
+    </div>
+
+    <hr style="border:0; border-top:1px solid #ddd; margin: 15px 0;" />
+
+    <div style="background:#e9ecef; padding: 12px; border-radius: 6px; font-weight:bold; font-size:0.95rem; display:flex; justify-content:space-between; align-items:center;">
+      <span>Total séances : <span style="color:#007bff;">${totalSeances}</span></span>
+      <span>Montant total : <span style="color:#28a745;">${montantTotal.toFixed(2)} €</span></span>
     </div>
   `;
 };
@@ -130,7 +186,7 @@ async function loadPatientsDropdowns() {
   if (deleteSelect) deleteSelect.innerHTML = optionsHTML;
 }
 
-// 6. Chargement des prochains rendez-vous programmés (RDV cliquable)
+// 6. Chargement des prochains rendez-vous programmés
 async function loadUpcomingRDV() {
   const container = document.getElementById('upcoming-rdv-list');
   if (!container || !supabaseClient) return;
@@ -223,7 +279,6 @@ async function loadComptaMonth(yearMonth) {
   document.getElementById('summary-pending-amount').textContent = `${totalPending.toFixed(2)} €`;
 }
 
-// Inverser le statut du règlement depuis le tableau compta
 window.togglePayment = async (rdvId, newStatut, yearMonth) => {
   const { error } = await supabaseClient
     .from('rendez_vous')
@@ -234,14 +289,12 @@ window.togglePayment = async (rdvId, newStatut, yearMonth) => {
   else loadComptaMonth(yearMonth);
 };
 
-// Masquer les formulaires d'actions
 function hideAllForms() {
   document.getElementById('form-new-patient-container')?.classList.add('hidden');
   document.getElementById('form-delete-patient-container')?.classList.add('hidden');
   document.getElementById('form-new-rdv-container')?.classList.add('hidden');
 }
 
-// Basculer l'affichage (Vue principale vs Comptabilité)
 function switchNav(view) {
   const patientsBtn = document.getElementById('nav-patients-btn');
   const comptaBtn = document.getElementById('nav-compta-btn');
@@ -271,7 +324,6 @@ function switchNav(view) {
   }
 }
 
-// Vérification de Session
 async function checkAuth() {
   const authSection = document.getElementById('auth-section');
   const dashboard = document.getElementById('dashboard');
@@ -290,11 +342,9 @@ async function checkAuth() {
   }
 }
 
-// Événements
 document.addEventListener('DOMContentLoaded', () => {
   checkAuth();
 
-  // Navigation gauche : Clic sur Patients ouvre la fenêtre modale
   document.getElementById('nav-patients-btn')?.addEventListener('click', (e) => {
     e.preventDefault();
     switchNav('patients');
@@ -303,7 +353,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('nav-compta-btn')?.addEventListener('click', () => switchNav('compta'));
 
-  // Boutons du haut
   document.getElementById('btn-open-new-patient')?.addEventListener('click', () => {
     hideAllForms();
     document.getElementById('form-new-patient-container')?.classList.remove('hidden');
@@ -321,17 +370,14 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('form-new-rdv-container')?.classList.remove('hidden');
   });
 
-  // Boutons Annuler sur les formulaires
   document.querySelectorAll('.cancel-form-btn').forEach(btn => {
     btn.addEventListener('click', hideAllForms);
   });
 
-  // Changement de mois comptabilité
   document.getElementById('compta-month-select')?.addEventListener('change', (e) => {
     loadComptaMonth(e.target.value);
   });
 
-  // Connexion / Déconnexion
   document.getElementById('auth-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const email = document.getElementById('auth-email').value.trim();
@@ -346,7 +392,6 @@ document.addEventListener('DOMContentLoaded', () => {
     checkAuth();
   });
 
-  // Soumission : Nouveau Patient
   document.getElementById('patient-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const nom = document.getElementById('patient-nom').value.trim();
@@ -367,7 +412,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Soumission : Supprimer Patient
   document.getElementById('delete-patient-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const patientId = document.getElementById('delete-patient-select').value;
@@ -384,7 +428,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Soumission : Nouveau RDV
+  // Soumission : Nouveau RDV avec enregistrement du compte-rendu
   document.getElementById('rdv-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const patient_id = document.getElementById('rdv-patient').value;
@@ -392,9 +436,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const motif = document.getElementById('rdv-motif').value.trim();
     const tarif = document.getElementById('rdv-tarif').value;
     const statut = document.getElementById('rdv-statut').value;
+    const compte_rendu = document.getElementById('rdv-compte-rendu')?.value.trim() || null;
 
     const { error } = await supabaseClient.from('rendez_vous').insert([{
-      patient_id, date_heure, motif, tarif: parseFloat(tarif), statut
+      patient_id, date_heure, motif, tarif: parseFloat(tarif), statut, compte_rendu
     }]);
 
     if (error) alert("Erreur : " + error.message);
