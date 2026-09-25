@@ -17,7 +17,32 @@ const TARIFS_MOTIFS = {
   "Autre": 0
 };
 
-// 1. Charger et afficher la liste des patients (dans une modale dédiée)
+// Fonction utilitaire pour centrer une modale à l'écran
+function applyModalCentering(modalElement) {
+  if (!modalElement) return;
+  modalElement.style.position = 'fixed';
+  modalElement.style.top = '0';
+  modalElement.style.left = '0';
+  modalElement.style.width = '100vw';
+  modalElement.style.height = '100vh';
+  modalElement.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+  modalElement.style.display = 'flex';
+  modalElement.style.justifyContent = 'center';
+  modalElement.style.alignItems = 'center';
+  modalElement.style.zIndex = '9999';
+
+  // S'assurer que le contenu interne est bien encadré
+  const content = modalElement.querySelector('.modal-content');
+  if (content) {
+    content.style.maxHeight = '85vh';
+    content.style.overflowY = 'auto';
+    content.style.width = '90%';
+    content.style.maxWidth = '600px';
+    content.style.margin = 'auto';
+  }
+}
+
+// 1. Charger et afficher la liste des patients (centrée sur la page)
 window.openPatientsModal = async function() {
   console.log("-> Ouverture / Chargement de la liste des patients...");
   
@@ -26,7 +51,7 @@ window.openPatientsModal = async function() {
 
   if (modal) {
     modal.classList.remove('hidden');
-    modal.style.display = 'block';
+    applyModalCentering(modal);
   }
 
   if (!container) {
@@ -40,7 +65,7 @@ window.openPatientsModal = async function() {
     return;
   }
 
-  container.innerHTML = '<p>Chargement des patients...</p>';
+  container.innerHTML = '<p style="text-align:center;">Chargement des patients...</p>';
 
   const { data: patients, error } = await supabaseClient
     .from('patients')
@@ -49,12 +74,12 @@ window.openPatientsModal = async function() {
 
   if (error) {
     console.error("Erreur Supabase lors du fetch patients :", error);
-    container.innerHTML = `<p style="color:red;">Erreur lors de la récupération : ${error.message}</p>`;
+    container.innerHTML = `<p style="color:red; text-align:center;">Erreur lors de la récupération : ${error.message}</p>`;
     return;
   }
 
   if (!patients || patients.length === 0) {
-    container.innerHTML = '<p>Aucun patient enregistré.</p>';
+    container.innerHTML = '<p style="text-align:center;">Aucun patient enregistré.</p>';
     return;
   }
 
@@ -166,8 +191,9 @@ window.viewPatientDetail = async function(patientId) {
   if (!modal || !body || !supabaseClient) return;
 
   modal.classList.remove('hidden');
-  modal.style.display = 'block';
-  body.innerHTML = '<p>Chargement des informations...</p>';
+  applyModalCentering(modal);
+
+  body.innerHTML = '<p style="text-align:center;">Chargement des informations...</p>';
 
   const { data: patient, error: errPatient } = await supabaseClient
     .from('patients')
@@ -176,7 +202,7 @@ window.viewPatientDetail = async function(patientId) {
     .single();
 
   if (errPatient || !patient) {
-    body.innerHTML = `<p style="color:red;">Erreur lors du chargement de la fiche.</p>`;
+    body.innerHTML = `<p style="color:red; text-align:center;">Erreur lors du chargement de la fiche.</p>`;
     return;
   }
 
@@ -215,7 +241,7 @@ window.viewPatientDetail = async function(patientId) {
       <p><strong>Email :</strong> ${patient.email || 'Non renseigné'}</p>
     </div>
     <hr style="border:0; border-top:1px solid #ddd; margin: 12px 0;" />
-    <div style="max-height: 400px; overflow-y: auto; padding-right: 5px;">
+    <div style="max-height: 350px; overflow-y: auto; padding-right: 5px;">
       <h4 style="margin-bottom:8px; color:#007bff;">🔮 Séances à venir (${seancesAvenir.length})</h4>
       <div style="margin-bottom:15px;">${avenirHTML}</div>
       <h4 style="margin-bottom:8px; color:#2c3e50;">📜 Séances passées (${seancesPassees.length})</h4>
@@ -338,7 +364,6 @@ function switchNav(view) {
       comptaSection.style.display = 'none';
     }
 
-    // Charger les prochains rendez-vous sur le tableau de bord
     loadUpcomingRdvs();
   } else if (view === 'compta') {
     if (comptaBtn) comptaBtn.classList.add('active');
@@ -476,7 +501,7 @@ document.addEventListener('DOMContentLoaded', () => {
     patientsBtn.addEventListener('click', (e) => {
       e.preventDefault();
       switchNav('patients');
-      window.openPatientsModal(); // N'ouvre la liste des patients QU'AU clic sur ce bouton
+      window.openPatientsModal();
     });
   }
 
