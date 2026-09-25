@@ -17,13 +17,13 @@ const TARIFS_MOTIFS = {
   "Autre": 0
 };
 
-// 1. Modale de la liste des patients (Ordre Alphabétique)
+// 1. Charger et afficher la liste des patients (Ordre Alphabétique)
 window.openPatientsModal = async function() {
-  const container = document.getElementById('modal-patients-body');
+  const container = document.getElementById('modal-patients-body') || document.getElementById('upcoming-rdv-list');
   const modal = document.getElementById('modal-patients-list');
-  if (!container || !modal || !supabaseClient) return;
+  if (!container || !supabaseClient) return;
 
-  modal.classList.remove('hidden');
+  if (modal) modal.classList.remove('hidden');
   container.innerHTML = '<p>Chargement des patients...</p>';
 
   const { data: patients, error } = await supabaseClient
@@ -42,9 +42,9 @@ window.openPatientsModal = async function() {
   }
 
   container.innerHTML = patients.map(p => `
-    <div class="modal-patient-row">
-      <div class="modal-patient-name">${p.nom.toUpperCase()} ${p.prenom}</div>
-      <div class="patient-actions">
+    <div class="modal-patient-row" style="display:flex; justify-position:space-between; align-items:center; padding:10px; border-bottom:1px solid #eee;">
+      <div class="modal-patient-name" style="font-weight:bold;">${p.nom.toUpperCase()} ${p.prenom}</div>
+      <div class="patient-actions" style="display:flex; gap:8px;">
         <button class="icon-btn" title="Voir la fiche" onclick="viewPatientDetail('${p.id}')">👁️</button>
         <button class="icon-btn" title="Ajouter une séance" onclick="addRdvForPatient('${p.id}')">➕</button>
         <button class="icon-btn danger-icon" title="Supprimer le patient" onclick="deletePatientModal('${p.id}', '${p.nom.toUpperCase()} ${p.prenom}')">❌</button>
@@ -189,7 +189,6 @@ window.updateSeanceStatut = async function(rdvId, newStatut, patientId) {
     alert("Erreur lors de la mise à jour du statut : " + error.message);
   } else {
     window.viewPatientDetail(patientId);
-    loadUpcomingRDV();
   }
 };
 
@@ -233,7 +232,6 @@ window.deletePatientModal = async function(patientId, patientName) {
     else {
       alert("Patient supprimé.");
       window.openPatientsModal();
-      loadUpcomingRDV();
     }
   }
 };
@@ -256,47 +254,7 @@ async function loadPatientsDropdowns() {
   if (deleteSelect) deleteSelect.innerHTML = optionsHTML;
 }
 
-// 8. Chargement des rendez-vous à venir
-async function loadUpcomingRDV() {
-  const container = document.getElementById('upcoming-rdv-list');
-  if (!container || !supabaseClient) return;
-
-  const now = new Date().toISOString();
-
-  const { data: rdvs, error } = await supabaseClient
-    .from('rendez_vous')
-    .select('id, patient_id, date_heure, motif, tarif, statut, patients(nom, prenom)')
-    .gte('date_heure', now)
-    .order('date_heure', { ascending: true });
-
-  if (error) {
-    container.innerHTML = `<p style="color:red;">Erreur : ${error.message}</p>`;
-    return;
-  }
-
-  if (!rdvs || rdvs.length === 0) {
-    container.innerHTML = '<p>Aucun rendez-vous à venir.</p>';
-    return;
-  }
-
-  container.innerHTML = rdvs.map(r => {
-    const dt = new Date(r.date_heure);
-    const dateStr = dt.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
-    const timeStr = dt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-    const displayTarif = r.statut === 'Annulée' ? 0 : (r.tarif || 0);
-
-    return `
-      <div class="rdv-item clickable-rdv" onclick="viewPatientDetail('${r.patient_id}')" style="cursor:pointer;" title="Cliquer pour ouvrir la fiche patient">
-        <div class="rdv-title">${dateStr} à ${timeStr} — ${r.patients ? r.patients.nom.toUpperCase() + ' ' + r.patients.prenom : 'Patient inconnu'}</div>
-        <div class="rdv-info">
-          Motif : ${r.motif || 'Non renseigné'} | Tarif : ${displayTarif} € | Statut : <strong>${r.statut}</strong>
-        </div>
-      </div>
-    `;
-  }).join('');
-}
-
-// 9. Comptabilité Mensuelle
+// 8. Comptabilité Mensuelle
 async function loadComptaMonth(yearMonth) {
   const tableBody = document.getElementById('compta-table-body');
   if (!tableBody || !supabaseClient) return;
@@ -344,22 +302,17 @@ async function loadComptaMonth(yearMonth) {
     }).join('');
   }
 
-  // Mettre à jour les totaux
   document.getElementById('summary-total-count').textContent = rdvs ? rdvs.length : 0;
   document.getElementById('summary-paid-amount').textContent = `${totalPaid.toFixed(2)} €`;
   document.getElementById('summary-pending-amount').textContent = `${totalPending.toFixed(2)} €`;
 
-  // Mettre à jour le bilan financier
   updateBilanCalculs(totalPaid);
 }
 
-// Fonction de calcul du Bilan Financier
 function updateBilanCalculs(totalPaid) {
   const CHARGES_FIXES = 486.82;
-
   const fournituresInput = document.getElementById('input-fournitures');
   const fournitures = fournituresInput ? parseFloat(fournituresInput.value) || 0 : 10;
-
   const totalChargesExploitation = CHARGES_FIXES + fournitures;
 
   const urssafSelect = document.getElementById('urssaf-rate-select');
@@ -398,19 +351,22 @@ function switchNav(view) {
   hideAllForms();
 
   if (view === 'patients') {
-    patientsBtn?.classList.add('active');
+    if (patientsBtn) {
+      patientsBtn.textContent = 'Patient';
+      patientsBtn.classList.add('active');
+    }
     comptaBtn?.classList.remove('active');
     patientsSection?.classList.remove('hidden');
     comptaSection?.classList.add('hidden');
-    loadUpcomingRDV();
-    // Ouvre la liste alphabétique des patients
+    
+    // Charger directement la liste alphabétique
     window.openPatientsModal();
   } else if (view === 'compta') {
     comptaBtn?.classList.add('active');
     patientsBtn?.classList.remove('active');
     comptaSection?.classList.remove('hidden');
     patientsSection?.classList.add('hidden');
-    // Ferme la liste des patients
+    
     window.closePatientsModal();
 
     const monthInput = document.getElementById('compta-month-select');
@@ -443,6 +399,10 @@ async function checkAuth() {
 document.addEventListener('DOMContentLoaded', () => {
   checkAuth();
 
+  // Renommer le bouton de gauche en "Patient" au chargement
+  const patientsBtn = document.getElementById('nav-patients-btn');
+  if (patientsBtn) patientsBtn.textContent = 'Patient';
+
   document.addEventListener('change', (e) => {
     if (e.target && e.target.id === 'rdv-motif') {
       const selectedMotif = e.target.value;
@@ -463,13 +423,12 @@ document.addEventListener('DOMContentLoaded', () => {
     if (monthInput && monthInput.value) loadComptaMonth(monthInput.value);
   });
 
-  // Navigation Bouton Patients : Ouvre la liste alphabétique
-  document.getElementById('nav-patients-btn')?.addEventListener('click', (e) => {
+  // Clic sur le bouton de gauche "Patient" -> affiche la liste alphabétique
+  patientsBtn?.addEventListener('click', (e) => {
     e.preventDefault();
     switchNav('patients');
   });
 
-  // Navigation Bouton Comptabilité
   document.getElementById('nav-compta-btn')?.addEventListener('click', (e) => {
     e.preventDefault();
     switchNav('compta');
@@ -547,7 +506,6 @@ document.addEventListener('DOMContentLoaded', () => {
         alert("Patient supprimé.");
         hideAllForms();
         window.openPatientsModal();
-        loadUpcomingRDV();
       }
     }
   });
@@ -577,7 +535,7 @@ document.addEventListener('DOMContentLoaded', () => {
       alert("Rendez-vous programmé !");
       document.getElementById('rdv-form').reset();
       hideAllForms();
-      loadUpcomingRDV();
+      switchNav('patients');
     }
   });
 });
