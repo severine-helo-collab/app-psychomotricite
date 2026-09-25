@@ -355,23 +355,19 @@ async function loadComptaMonth(yearMonth) {
 
 // Fonction de calcul du Bilan Financier
 function updateBilanCalculs(totalPaid) {
-  // Charges fixes d'exploitation : Loyer (410€) + Doctolib (62€) + RC Pro (14.82€)
   const CHARGES_FIXES = 486.82;
 
-  // Récupération des charges variables (Fournitures : 10€ par défaut)
   const fournituresInput = document.getElementById('input-fournitures');
   const fournitures = fournituresInput ? parseFloat(fournituresInput.value) || 0 : 10;
 
   const totalChargesExploitation = CHARGES_FIXES + fournitures;
 
-  // Taux URSSAF + CFP (17.6% par défaut = 17.4% URSSAF BNC + 0.2% CFP)
   const urssafSelect = document.getElementById('urssaf-rate-select');
   const urssafRate = urssafSelect ? parseFloat(urssafSelect.value) : 0.176;
 
   const montantUrssaf = totalPaid * urssafRate;
   const beneficeNet = totalPaid - montantUrssaf - totalChargesExploitation;
 
-  // Affichage dans les éléments HTML
   const caEl = document.getElementById('bilan-ca');
   const urssafEl = document.getElementById('bilan-urssaf');
   const chargesEl = document.getElementById('bilan-charges');
@@ -400,25 +396,26 @@ function switchNav(view) {
   const comptaSection = document.getElementById('view-compta-section');
 
   hideAllForms();
+  window.closePatientsModal(); // Ferme systématiquement la modale de liste de patients
 
   if (view === 'patients') {
-    patientsBtn.classList.add('active');
-    comptaBtn.classList.remove('active');
-    patientsSection.classList.remove('hidden');
-    comptaSection.classList.add('hidden');
+    patientsBtn?.classList.add('active');
+    comptaBtn?.classList.remove('active');
+    patientsSection?.classList.remove('hidden');
+    comptaSection?.classList.add('hidden');
     loadUpcomingRDV();
-  } else {
-    comptaBtn.classList.add('active');
-    patientsBtn.classList.remove('active');
-    comptaSection.classList.remove('hidden');
-    patientsSection.classList.add('hidden');
+  } else if (view === 'compta') {
+    comptaBtn?.classList.add('active');
+    patientsBtn?.classList.remove('active');
+    comptaSection?.classList.remove('hidden');
+    patientsSection?.classList.add('hidden');
 
     const monthInput = document.getElementById('compta-month-select');
-    if (!monthInput.value) {
+    if (monthInput && !monthInput.value) {
       const now = new Date();
       monthInput.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     }
-    loadComptaMonth(monthInput.value);
+    if (monthInput) loadComptaMonth(monthInput.value);
   }
 }
 
@@ -443,7 +440,6 @@ async function checkAuth() {
 document.addEventListener('DOMContentLoaded', () => {
   checkAuth();
 
-  // Écouteur global pour la mise à jour automatique du tarif au changement de motif
   document.addEventListener('change', (e) => {
     if (e.target && e.target.id === 'rdv-motif') {
       const selectedMotif = e.target.value;
@@ -454,7 +450,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Écouteurs pour recalculer le bilan en temps réel
   document.getElementById('urssaf-rate-select')?.addEventListener('change', () => {
     const monthInput = document.getElementById('compta-month-select');
     if (monthInput && monthInput.value) loadComptaMonth(monthInput.value);
@@ -465,13 +460,21 @@ document.addEventListener('DOMContentLoaded', () => {
     if (monthInput && monthInput.value) loadComptaMonth(monthInput.value);
   });
 
+  // Navigation corrigée : plus d'ouverture de modale ici
   document.getElementById('nav-patients-btn')?.addEventListener('click', (e) => {
     e.preventDefault();
     switchNav('patients');
-    window.openPatientsModal();
   });
 
-  document.getElementById('nav-compta-btn')?.addEventListener('click', () => switchNav('compta'));
+  document.getElementById('nav-compta-btn')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    switchNav('compta');
+  });
+
+  // Bouton dédié à l'ouverture de la liste des patients (si présent dans votre HTML)
+  document.getElementById('btn-open-patients-list')?.addEventListener('click', () => {
+    window.openPatientsModal();
+  });
 
   document.getElementById('btn-open-new-patient')?.addEventListener('click', () => {
     hideAllForms();
@@ -548,7 +551,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Enregistrement de la séance
   document.getElementById('rdv-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const patient_id = document.getElementById('rdv-patient').value;
