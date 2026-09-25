@@ -17,13 +17,30 @@ const TARIFS_MOTIFS = {
   "Autre": 0
 };
 
-// 1. Charger et afficher la liste des patients (Ordre Alphabétique)
+// 1. Charger et afficher la liste des patients
 window.openPatientsModal = async function() {
+  console.log("-> Ouverture / Chargement de la liste des patients...");
+  
+  // Chercher les conteneurs possibles
   const container = document.getElementById('modal-patients-body') || document.getElementById('upcoming-rdv-list');
   const modal = document.getElementById('modal-patients-list');
-  if (!container || !supabaseClient) return;
 
-  if (modal) modal.classList.remove('hidden');
+  if (modal) {
+    modal.classList.remove('hidden');
+    modal.style.display = 'block'; // Secours au cas où .hidden ne gère pas le display
+  }
+
+  if (!container) {
+    console.error("Erreur : Aucun conteneur HTML trouvé ('modal-patients-body' ou 'upcoming-rdv-list')");
+    return;
+  }
+
+  if (!supabaseClient) {
+    console.error("Erreur : supabaseClient n'est pas initialisé.");
+    container.innerHTML = '<p style="color:red;">Erreur d'initialisation de Supabase.</p>';
+    return;
+  }
+
   container.innerHTML = '<p>Chargement des patients...</p>';
 
   const { data: patients, error } = await supabaseClient
@@ -32,7 +49,8 @@ window.openPatientsModal = async function() {
     .order('nom', { ascending: true });
 
   if (error) {
-    container.innerHTML = `<p style="color:red;">Erreur : ${error.message}</p>`;
+    console.error("Erreur Supabase lors du fetch patients :", error);
+    container.innerHTML = `<p style="color:red;">Erreur lors de la récupération : ${error.message}</p>`;
     return;
   }
 
@@ -42,22 +60,26 @@ window.openPatientsModal = async function() {
   }
 
   container.innerHTML = patients.map(p => `
-    <div class="modal-patient-row" style="display:flex; justify-position:space-between; align-items:center; padding:10px; border-bottom:1px solid #eee;">
-      <div class="modal-patient-name" style="font-weight:bold;">${p.nom.toUpperCase()} ${p.prenom}</div>
+    <div class="modal-patient-row" style="display:flex; justify-content:space-between; align-items:center; padding:10px; border-bottom:1px solid #eee;">
+      <div class="modal-patient-name" style="font-weight:bold;">${(p.nom || '').toUpperCase()} ${p.prenom || ''}</div>
       <div class="patient-actions" style="display:flex; gap:8px;">
         <button class="icon-btn" title="Voir la fiche" onclick="viewPatientDetail('${p.id}')">👁️</button>
         <button class="icon-btn" title="Ajouter une séance" onclick="addRdvForPatient('${p.id}')">➕</button>
-        <button class="icon-btn danger-icon" title="Supprimer le patient" onclick="deletePatientModal('${p.id}', '${p.nom.toUpperCase()} ${p.prenom}')">❌</button>
+        <button class="icon-btn danger-icon" title="Supprimer le patient" onclick="deletePatientModal('${p.id}', '${(p.nom || '').toUpperCase()} ${p.prenom || ''}')">❌</button>
       </div>
     </div>
   `).join('');
 };
 
 window.closePatientsModal = function() {
-  document.getElementById('modal-patients-list')?.classList.add('hidden');
+  const modal = document.getElementById('modal-patients-list');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.style.display = 'none';
+  }
 };
 
-// 2. Carte d'une séance avec statut modifiable et compte-rendu
+// 2. Carte d'une séance
 function renderSeanceCard(r, indexNumber, patientId) {
   const dt = new Date(r.date_heure);
   const dateStr = dt.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
@@ -65,7 +87,6 @@ function renderSeanceCard(r, indexNumber, patientId) {
 
   const statuts = ["À venir", "Clôturée", "Annulée", "Reportée"];
   const optionsStatut = statuts.map(s => `<option value="${s}" ${r.statut === s ? 'selected' : ''}>${s}</option>`).join('');
-
   const displayTarif = r.statut === 'Annulée' ? 0 : (r.tarif || 0);
 
   return `
@@ -93,7 +114,7 @@ function renderSeanceCard(r, indexNumber, patientId) {
   `;
 }
 
-// 3. Voir la fiche patient complète
+// 3. Fiche Patient
 window.viewPatientDetail = async function(patientId) {
   const modal = document.getElementById('modal-patient-detail');
   const title = document.getElementById('patient-detail-title');
@@ -101,6 +122,7 @@ window.viewPatientDetail = async function(patientId) {
   if (!modal || !body || !supabaseClient) return;
 
   modal.classList.remove('hidden');
+  modal.style.display = 'block';
   body.innerHTML = '<p>Chargement des informations...</p>';
 
   const { data: patient, error: errPatient } = await supabaseClient
@@ -114,19 +136,14 @@ window.viewPatientDetail = async function(patientId) {
     return;
   }
 
-  const { data: rdvs, error: errRdvs } = await supabaseClient
+  const { data: rdvs } = await supabaseClient
     .from('rendez_vous')
     .select('*')
     .eq('patient_id', patientId)
     .order('date_heure', { ascending: true });
 
-  title.textContent = `Fiche de ${patient.prenom} ${patient.nom.toUpperCase()}`;
+  if (title) title.textContent = `Fiche de ${patient.prenom} ${(patient.nom || '').toUpperCase()}`;
   const dobStr = patient.date_naissance ? new Date(patient.date_naissance).toLocaleDateString('fr-FR') : 'Non renseignée';
-
-  if (errRdvs) {
-    body.innerHTML = `<p style="color:red;">Erreur lors du chargement des séances.</p>`;
-    return;
-  }
 
   const now = new Date();
   const rdvsWithNum = (rdvs || []).map((r, idx) => ({ ...r, number: idx + 1 }));
@@ -147,25 +164,20 @@ window.viewPatientDetail = async function(patientId) {
 
   body.innerHTML = `
     <div style="display: flex; flex-direction: column; gap: 0.3rem; font-size: 0.95rem; margin-bottom:1rem;">
-      <p><strong>Nom :</strong> ${patient.nom.toUpperCase()}</p>
+      <p><strong>Nom :</strong> ${(patient.nom || '').toUpperCase()}</p>
       <p><strong>Prénom :</strong> ${patient.prenom}</p>
       <p><strong>Date de naissance :</strong> ${dobStr}</p>
       <p><strong>Téléphone :</strong> ${patient.telephone || 'Non renseigné'}</p>
       <p><strong>Email :</strong> ${patient.email || 'Non renseigné'}</p>
     </div>
-
     <hr style="border:0; border-top:1px solid #ddd; margin: 12px 0;" />
-
     <div style="max-height: 400px; overflow-y: auto; padding-right: 5px;">
       <h4 style="margin-bottom:8px; color:#007bff;">🔮 Séances à venir (${seancesAvenir.length})</h4>
       <div style="margin-bottom:15px;">${avenirHTML}</div>
-
       <h4 style="margin-bottom:8px; color:#2c3e50;">📜 Séances passées (${seancesPassees.length})</h4>
       <div>${passeesHTML}</div>
     </div>
-
     <hr style="border:0; border-top:1px solid #ddd; margin: 12px 0;" />
-
     <div style="background:#e9ecef; padding: 12px; border-radius: 6px; font-weight:bold; font-size:0.95rem; display:flex; justify-content:space-between; align-items:center;">
       <span>Total séances : <span style="color:#007bff;">${totalSeances}</span></span>
       <span>Montant total : <span style="color:#28a745;">${montantTotal.toFixed(2)} €</span></span>
@@ -176,43 +188,29 @@ window.viewPatientDetail = async function(patientId) {
 // 4. Mettre à jour le statut
 window.updateSeanceStatut = async function(rdvId, newStatut, patientId) {
   const updateData = { statut: newStatut };
-  if (newStatut === 'Annulée') {
-    updateData.tarif = 0;
-  }
+  if (newStatut === 'Annulée') updateData.tarif = 0;
 
-  const { error } = await supabaseClient
-    .from('rendez_vous')
-    .update(updateData)
-    .eq('id', rdvId);
-
-  if (error) {
-    alert("Erreur lors de la mise à jour du statut : " + error.message);
-  } else {
-    window.viewPatientDetail(patientId);
-  }
+  const { error } = await supabaseClient.from('rendez_vous').update(updateData).eq('id', rdvId);
+  if (error) alert("Erreur : " + error.message);
+  else window.viewPatientDetail(patientId);
 };
 
-// 5. Enregistrer le compte-rendu
+// 5. Sauvegarder le compte-rendu
 window.saveCompteRendu = async function(rdvId, patientId) {
   const crValue = document.getElementById(`cr-${rdvId}`)?.value.trim() || '';
-
-  const { error } = await supabaseClient
-    .from('rendez_vous')
-    .update({ compte_rendu: crValue })
-    .eq('id', rdvId);
-
-  if (error) {
-    alert("Erreur lors de la sauvegarde du compte-rendu : " + error.message);
-  } else {
-    alert("Compte-rendu sauvegardé !");
-  }
+  const { error } = await supabaseClient.from('rendez_vous').update({ compte_rendu: crValue }).eq('id', rdvId);
+  if (error) alert("Erreur : " + error.message);
+  else alert("Compte-rendu sauvegardé !");
 };
 
 window.closePatientDetailModal = function() {
-  document.getElementById('modal-patient-detail')?.classList.add('hidden');
+  const modal = document.getElementById('modal-patient-detail');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.style.display = 'none';
+  }
 };
 
-// 6. Action ➕ : Pré-remplir la séance
 window.addRdvForPatient = async function(patientId) {
   window.closePatientsModal();
   hideAllForms();
@@ -221,12 +219,15 @@ window.addRdvForPatient = async function(patientId) {
   const select = document.getElementById('rdv-patient');
   if (select) select.value = patientId;
 
-  document.getElementById('form-new-rdv-container')?.classList.remove('hidden');
+  const formRdv = document.getElementById('form-new-rdv-container');
+  if (formRdv) {
+    formRdv.classList.remove('hidden');
+    formRdv.style.display = 'block';
+  }
 };
 
-// 7. Supprimer un patient
 window.deletePatientModal = async function(patientId, patientName) {
-  if (confirm(`Êtes-vous sûre de vouloir supprimer le patient "${patientName}" et tous ses rendez-vous associés ?`)) {
+  if (confirm(`Êtes-vous sûre de vouloir supprimer le patient "${patientName}" et tous ses rendez-vous ?`)) {
     const { error } = await supabaseClient.from('patients').delete().eq('id', patientId);
     if (error) alert("Erreur : " + error.message);
     else {
@@ -248,13 +249,72 @@ async function loadPatientsDropdowns() {
   const deleteSelect = document.getElementById('delete-patient-select');
 
   const optionsHTML = '<option value="">-- Choisir un patient --</option>' +
-    (patients || []).map(p => `<option value="${p.id}">${p.nom.toUpperCase()} ${p.prenom}</option>`).join('');
+    (patients || []).map(p => `<option value="${p.id}">${(p.nom || '').toUpperCase()} ${p.prenom || ''}</option>`).join('');
 
   if (rdvSelect) rdvSelect.innerHTML = optionsHTML;
   if (deleteSelect) deleteSelect.innerHTML = optionsHTML;
 }
 
-// 8. Comptabilité Mensuelle
+function hideAllForms() {
+  ['form-new-patient-container', 'form-delete-patient-container', 'form-new-rdv-container'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.classList.add('hidden');
+      el.style.display = 'none';
+    }
+  });
+}
+
+function switchNav(view) {
+  console.log("-> Changement d'onglet vers :", view);
+  const patientsBtn = document.getElementById('nav-patients-btn');
+  const comptaBtn = document.getElementById('nav-compta-btn');
+  const patientsSection = document.getElementById('view-patients-section');
+  const comptaSection = document.getElementById('view-compta-section');
+
+  hideAllForms();
+
+  if (view === 'patients') {
+    if (patientsBtn) {
+      patientsBtn.textContent = 'Patient';
+      patientsBtn.classList.add('active');
+    }
+    if (comptaBtn) comptaBtn.classList.remove('active');
+
+    if (patientsSection) {
+      patientsSection.classList.remove('hidden');
+      patientsSection.style.display = 'block';
+    }
+    if (comptaSection) {
+      comptaSection.classList.add('hidden');
+      comptaSection.style.display = 'none';
+    }
+
+    window.openPatientsModal();
+  } else if (view === 'compta') {
+    if (comptaBtn) comptaBtn.classList.add('active');
+    if (patientsBtn) patientsBtn.classList.remove('active');
+
+    if (comptaSection) {
+      comptaSection.classList.remove('hidden');
+      comptaSection.style.display = 'block';
+    }
+    if (patientsSection) {
+      patientsSection.classList.add('hidden');
+      patientsSection.style.display = 'none';
+    }
+
+    window.closePatientsModal();
+
+    const monthInput = document.getElementById('compta-month-select');
+    if (monthInput && !monthInput.value) {
+      const now = new Date();
+      monthInput.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    }
+    if (monthInput) loadComptaMonth(monthInput.value);
+  }
+}
+
 async function loadComptaMonth(yearMonth) {
   const tableBody = document.getElementById('compta-table-body');
   if (!tableBody || !supabaseClient) return;
@@ -283,16 +343,16 @@ async function loadComptaMonth(yearMonth) {
   } else {
     tableBody.innerHTML = rdvs.map(r => {
       const currentTarif = r.statut === 'Annulée' ? 0 : Number(r.tarif || 0);
-
       if (r.statut === 'Clôturée' || r.statut === 'Réglé') totalPaid += currentTarif;
       if (r.statut === 'À venir') totalPending += currentTarif;
 
       const dt = new Date(r.date_heure).toLocaleDateString('fr-FR');
+      const patientNom = r.patients ? `${(r.patients.nom || '').toUpperCase()} ${r.patients.prenom || ''}` : 'Inconnu';
 
       return `
         <tr>
           <td>${dt}</td>
-          <td>${r.patients ? r.patients.nom.toUpperCase() + ' ' + r.patients.prenom : 'Inconnu'}</td>
+          <td>${patientNom}</td>
           <td>${r.motif || ''}</td>
           <td>${currentTarif} €</td>
           <td>${r.statut}</td>
@@ -302,9 +362,13 @@ async function loadComptaMonth(yearMonth) {
     }).join('');
   }
 
-  document.getElementById('summary-total-count').textContent = rdvs ? rdvs.length : 0;
-  document.getElementById('summary-paid-amount').textContent = `${totalPaid.toFixed(2)} €`;
-  document.getElementById('summary-pending-amount').textContent = `${totalPending.toFixed(2)} €`;
+  const elCount = document.getElementById('summary-total-count');
+  const elPaid = document.getElementById('summary-paid-amount');
+  const elPending = document.getElementById('summary-pending-amount');
+
+  if (elCount) elCount.textContent = rdvs ? rdvs.length : 0;
+  if (elPaid) elPaid.textContent = `${totalPaid.toFixed(2)} €`;
+  if (elPending) elPending.textContent = `${totalPending.toFixed(2)} €`;
 
   updateBilanCalculs(totalPaid);
 }
@@ -336,48 +400,6 @@ function updateBilanCalculs(totalPaid) {
   }
 }
 
-function hideAllForms() {
-  document.getElementById('form-new-patient-container')?.classList.add('hidden');
-  document.getElementById('form-delete-patient-container')?.classList.add('hidden');
-  document.getElementById('form-new-rdv-container')?.classList.add('hidden');
-}
-
-function switchNav(view) {
-  const patientsBtn = document.getElementById('nav-patients-btn');
-  const comptaBtn = document.getElementById('nav-compta-btn');
-  const patientsSection = document.getElementById('view-patients-section');
-  const comptaSection = document.getElementById('view-compta-section');
-
-  hideAllForms();
-
-  if (view === 'patients') {
-    if (patientsBtn) {
-      patientsBtn.textContent = 'Patient';
-      patientsBtn.classList.add('active');
-    }
-    comptaBtn?.classList.remove('active');
-    patientsSection?.classList.remove('hidden');
-    comptaSection?.classList.add('hidden');
-    
-    // Charger directement la liste alphabétique
-    window.openPatientsModal();
-  } else if (view === 'compta') {
-    comptaBtn?.classList.add('active');
-    patientsBtn?.classList.remove('active');
-    comptaSection?.classList.remove('hidden');
-    patientsSection?.classList.add('hidden');
-    
-    window.closePatientsModal();
-
-    const monthInput = document.getElementById('compta-month-select');
-    if (monthInput && !monthInput.value) {
-      const now = new Date();
-      monthInput.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    }
-    if (monthInput) loadComptaMonth(monthInput.value);
-  }
-}
-
 async function checkAuth() {
   const authSection = document.getElementById('auth-section');
   const dashboard = document.getElementById('dashboard');
@@ -387,21 +409,32 @@ async function checkAuth() {
   const { data: { session } } = await supabaseClient.auth.getSession();
 
   if (session) {
-    authSection.classList.add('hidden');
-    dashboard.classList.remove('hidden');
+    if (authSection) authSection.classList.add('hidden');
+    if (dashboard) dashboard.classList.remove('hidden');
     switchNav('patients');
   } else {
-    authSection.classList.remove('hidden');
-    dashboard.classList.add('hidden');
+    if (authSection) authSection.classList.remove('hidden');
+    if (dashboard) dashboard.classList.add('hidden');
   }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
   checkAuth();
 
-  // Renommer le bouton de gauche en "Patient" au chargement
+  // Renommer le bouton de gauche en "Patient"
   const patientsBtn = document.getElementById('nav-patients-btn');
-  if (patientsBtn) patientsBtn.textContent = 'Patient';
+  if (patientsBtn) {
+    patientsBtn.textContent = 'Patient';
+    patientsBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      switchNav('patients');
+    });
+  }
+
+  document.getElementById('nav-compta-btn')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    switchNav('compta');
+  });
 
   document.addEventListener('change', (e) => {
     if (e.target && e.target.id === 'rdv-motif') {
@@ -413,42 +446,24 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  document.getElementById('urssaf-rate-select')?.addEventListener('change', () => {
-    const monthInput = document.getElementById('compta-month-select');
-    if (monthInput && monthInput.value) loadComptaMonth(monthInput.value);
-  });
-
-  document.getElementById('input-fournitures')?.addEventListener('input', () => {
-    const monthInput = document.getElementById('compta-month-select');
-    if (monthInput && monthInput.value) loadComptaMonth(monthInput.value);
-  });
-
-  // Clic sur le bouton de gauche "Patient" -> affiche la liste alphabétique
-  patientsBtn?.addEventListener('click', (e) => {
-    e.preventDefault();
-    switchNav('patients');
-  });
-
-  document.getElementById('nav-compta-btn')?.addEventListener('click', (e) => {
-    e.preventDefault();
-    switchNav('compta');
-  });
-
   document.getElementById('btn-open-new-patient')?.addEventListener('click', () => {
     hideAllForms();
-    document.getElementById('form-new-patient-container')?.classList.remove('hidden');
+    const el = document.getElementById('form-new-patient-container');
+    if (el) { el.classList.remove('hidden'); el.style.display = 'block'; }
   });
 
   document.getElementById('btn-open-delete-patient')?.addEventListener('click', () => {
     hideAllForms();
     loadPatientsDropdowns();
-    document.getElementById('form-delete-patient-container')?.classList.remove('hidden');
+    const el = document.getElementById('form-delete-patient-container');
+    if (el) { el.classList.remove('hidden'); el.style.display = 'block'; }
   });
 
   document.getElementById('btn-open-new-rdv')?.addEventListener('click', () => {
     hideAllForms();
     loadPatientsDropdowns();
-    document.getElementById('form-new-rdv-container')?.classList.remove('hidden');
+    const el = document.getElementById('form-new-rdv-container');
+    if (el) { el.classList.remove('hidden'); el.style.display = 'block'; }
   });
 
   document.querySelectorAll('.cancel-form-btn').forEach(btn => {
@@ -494,22 +509,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  document.getElementById('delete-patient-form')?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const patientId = document.getElementById('delete-patient-select').value;
-    if (!patientId) return;
-
-    if (confirm("Êtes-vous sûre de vouloir supprimer ce patient et tous ses RDV ?")) {
-      const { error } = await supabaseClient.from('patients').delete().eq('id', patientId);
-      if (error) alert("Erreur : " + error.message);
-      else {
-        alert("Patient supprimé.");
-        hideAllForms();
-        window.openPatientsModal();
-      }
-    }
-  });
-
   document.getElementById('rdv-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const patient_id = document.getElementById('rdv-patient').value;
@@ -521,10 +520,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const rdvDate = new Date(date_heure);
     const now = new Date();
     const statutInitial = rdvDate >= now ? "À venir" : "Clôturée";
-
-    if (statutInitial === "Annulée") {
-      tarif = 0;
-    }
 
     const { error } = await supabaseClient.from('rendez_vous').insert([{
       patient_id, date_heure, motif, tarif, statut: statutInitial, compte_rendu
