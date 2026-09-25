@@ -214,44 +214,57 @@
             </table>
 
             <!-- Encart Bilan Financier Mensuel -->
-            <div id="bilan-financier-container" style="background: #f8f9fa; border: 1px solid #007bff; border-radius: 8px; padding: 15px; margin-top: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-              <h3 style="margin-top:0; color:#007bff;">📊 Bilan Financier Mensuel</h3>
-              
-              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; font-size: 0.95rem;">
-                <div><strong>Chiffre d'Affaires (encaissé) :</strong> <br><span id="bilan-ca" style="color:#28a745; font-size:1.1rem; font-weight:bold;">0.00 €</span></div>
-                
-                <div>
-                  <strong>Cotisations URSSAF :</strong> 
-                  <select id="urssaf-rate-select" style="padding: 2px 5px; font-size:0.85rem; border-radius:4px; margin-left:5px;">
-                    <option value="0.121">1ère année (ACRE : ~12.1%)</option>
-                    <option value="0.211">Taux normal (~21.1%)</option>
-                  </select>
-                  <br><span id="bilan-urssaf" style="color:#dc3545; font-size:1.1rem; font-weight:bold;">- 0.00 €</span>
-                </div>
+<div id="bilan-financier-container" style="background: #fcfbf8; border: 1px solid var(--primary); border-radius: 8px; padding: 15px; margin-top: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+  <h3 style="margin-top:0; color:var(--primary);">📊 Bilan Financier Mensuel</h3>
+  
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; font-size: 0.95rem;">
+    <!-- Chiffre d'affaires -->
+    <div>
+      <strong>Chiffre d'Affaires :</strong> <br>
+      <span id="bilan-ca" style="color:var(--success); font-size:1.1rem; font-weight:bold;">0.00 €</span>
+    </div>
+    
+    <!-- Cotisations Sociales (URSSAF + CFP) -->
+    <div>
+      <strong>Cotisations (17.6%) :</strong> 
+      <select id="urssaf-rate-select" style="padding: 2px 5px; font-size:0.85rem; border-radius:4px; margin-left:5px;">
+        <option value="0.176" selected>Taux BNC + CFP (17.6%)</option>
+        <option value="0.123">ACRE + CFP (~12.3%)</option>
+      </select>
+      <br><span id="bilan-urssaf" style="color:var(--danger); font-size:1.1rem; font-weight:bold;">- 0.00 €</span>
+    </div>
 
-                <div><strong>Total Charges Fixes :</strong> <br><span id="bilan-charges" style="color:#dc3545; font-size:1.1rem; font-weight:bold;">- 517.90 €</span></div>
-                
-                <div><strong>Bénéfice Net Estimé :</strong> <br><span id="bilan-net" style="color:#007bff; font-size:1.2rem; font-weight:bold;">0.00 €</span></div>
-              </div>
+    <!-- Charges Variables (Fournitures) -->
+    <div>
+      <strong>Fournitures (variable) :</strong><br>
+      <div style="display: flex; align-items: center; gap: 4px; margin-top: 2px;">
+        <input type="number" id="input-fournitures" value="10" min="0" step="1" style="width: 80px; padding: 2px 6px; font-size: 0.9rem; border-radius: 4px; border: 1px solid var(--border-color);">
+        <span>€</span>
+      </div>
+    </div>
 
-              <details style="margin-top: 15px; font-size: 0.85rem; color: #555;">
-                <summary style="cursor: pointer; font-weight: bold;">Détail des charges mensuelles (cliquer pour masquer/afficher)</summary>
-                <ul style="margin: 5px 0; padding-left: 20px;">
-                  <li>Loyer : 430.00 €</li>
-                  <li>Doctolib : 68.00 €</li>
-                  <li>MACSF : 19.90 €</li>
-                </ul>
-                <em>Note : Les taux URSSAF appliqués sont basés sur le régime BNC des professions libérales.</em>
-              </details>
-            </div>
-
-          </div>
-        </div>
-
-      </section>
-    </main>
-
+    <!-- Total des charges d'exploitation (Fixes + Variables) -->
+    <div>
+      <strong>Charges de fonctionnement :</strong> <br>
+      <span id="bilan-charges" style="color:var(--danger); font-size:1.1rem; font-weight:bold;">- 496.82 €</span>
+    </div>
+    
+    <!-- Bénéfice Net -->
+    <div>
+      <strong>Bénéfice Net Estimé :</strong> <br>
+      <span id="bilan-net" style="color:var(--primary); font-size:1.2rem; font-weight:bold;">0.00 €</span>
+    </div>
   </div>
+
+  <details style="margin-top: 15px; font-size: 0.85rem; color: #555;">
+    <summary style="cursor: pointer; font-weight: bold;">Détail du calcul des charges</summary>
+    <ul style="margin: 5px 0; padding-left: 20px;">
+      <li><strong>Charges fixes (486,82 €) :</strong> Loyer (410,00 €) + Doctolib (62,00 €) + RC Pro (14,82 €)</li>
+      <li><strong>Charges variables :</strong> Fournitures (10,00 € par défaut)</li>
+      <li><strong>Cotisations sur CA (17,6 %) :</strong> URSSAF (17,4 %) + Contribution Formation Professionnelle (0,2 %)</li>
+    </ul>
+  </details>
+</div>
 
   <!-- MODALE : LISTE DES PATIENTS -->
   <div id="modal-patients-list" class="modal hidden">
