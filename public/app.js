@@ -296,7 +296,7 @@ async function loadUpcomingRDV() {
   }).join('');
 }
 
-// 9. Comptabilité Mensuelle (remplacée)
+// 9. Comptabilité Mensuelle
 async function loadComptaMonth(yearMonth) {
   const tableBody = document.getElementById('compta-table-body');
   if (!tableBody || !supabaseClient) return;
@@ -344,32 +344,32 @@ async function loadComptaMonth(yearMonth) {
     }).join('');
   }
 
-  // Mettre à jour les totaux classiques
+  // Mettre à jour les totaux
   document.getElementById('summary-total-count').textContent = rdvs ? rdvs.length : 0;
   document.getElementById('summary-paid-amount').textContent = `${totalPaid.toFixed(2)} €`;
   document.getElementById('summary-pending-amount').textContent = `${totalPending.toFixed(2)} €`;
 
-  // Mettre à jour le bilan financier avec URSSAF et Charges
+  // Mettre à jour le bilan financier
   updateBilanCalculs(totalPaid);
 }
 
-// Fonction auxiliaire de calcul du Bilan Financier
+// Fonction de calcul du Bilan Financier
 function updateBilanCalculs(totalPaid) {
-  // Charges fixes mensuelles
-  const chargesFixes = {
-    loyer: 430.00,
-    doctolib: 68.00,
-    macsf: 19.90
-  };
+  // Charges fixes d'exploitation : Loyer (410€) + Doctolib (62€) + RC Pro (14.82€)
+  const CHARGES_FIXES = 486.82;
 
-  const totalCharges = Object.values(chargesFixes).reduce((sum, val) => sum + val, 0);
+  // Récupération des charges variables (Fournitures : 10€ par défaut)
+  const fournituresInput = document.getElementById('input-fournitures');
+  const fournitures = fournituresInput ? parseFloat(fournituresInput.value) || 0 : 10;
 
-  // Taux URSSAF (par défaut 12.1% ACRE 1ère année, ou 21.1% taux plein)
+  const totalChargesExploitation = CHARGES_FIXES + fournitures;
+
+  // Taux URSSAF + CFP (17.6% par défaut = 17.4% URSSAF BNC + 0.2% CFP)
   const urssafSelect = document.getElementById('urssaf-rate-select');
-  const urssafRate = urssafSelect ? parseFloat(urssafSelect.value) : 0.121;
+  const urssafRate = urssafSelect ? parseFloat(urssafSelect.value) : 0.176;
 
   const montantUrssaf = totalPaid * urssafRate;
-  const beneficeNet = totalPaid - montantUrssaf - totalCharges;
+  const beneficeNet = totalPaid - montantUrssaf - totalChargesExploitation;
 
   // Affichage dans les éléments HTML
   const caEl = document.getElementById('bilan-ca');
@@ -379,7 +379,7 @@ function updateBilanCalculs(totalPaid) {
 
   if (caEl) caEl.textContent = `${totalPaid.toFixed(2)} €`;
   if (urssafEl) urssafEl.textContent = `- ${montantUrssaf.toFixed(2)} € (${(urssafRate * 100).toFixed(1)}%)`;
-  if (chargesEl) chargesEl.textContent = `- ${totalCharges.toFixed(2)} €`;
+  if (chargesEl) chargesEl.textContent = `- ${totalChargesExploitation.toFixed(2)} €`;
 
   if (netEl) {
     netEl.textContent = `${beneficeNet.toFixed(2)} €`;
@@ -454,12 +454,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Écouteur pour recalculer le bilan en cas de changement de taux URSSAF
+  // Écouteurs pour recalculer le bilan en temps réel
   document.getElementById('urssaf-rate-select')?.addEventListener('change', () => {
     const monthInput = document.getElementById('compta-month-select');
-    if (monthInput && monthInput.value) {
-      loadComptaMonth(monthInput.value);
-    }
+    if (monthInput && monthInput.value) loadComptaMonth(monthInput.value);
+  });
+
+  document.getElementById('input-fournitures')?.addEventListener('input', () => {
+    const monthInput = document.getElementById('compta-month-select');
+    if (monthInput && monthInput.value) loadComptaMonth(monthInput.value);
   });
 
   document.getElementById('nav-patients-btn')?.addEventListener('click', (e) => {
