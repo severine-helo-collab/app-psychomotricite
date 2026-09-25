@@ -17,7 +17,7 @@ const TARIFS_MOTIFS = {
   "Autre": 0
 };
 
-// 1. Modale de la liste des patients
+// 1. Modale de la liste des patients (Ordre Alphabétique)
 window.openPatientsModal = async function() {
   const container = document.getElementById('modal-patients-body');
   const modal = document.getElementById('modal-patients-list');
@@ -396,7 +396,6 @@ function switchNav(view) {
   const comptaSection = document.getElementById('view-compta-section');
 
   hideAllForms();
-  window.closePatientsModal(); // Ferme systématiquement la modale de liste de patients
 
   if (view === 'patients') {
     patientsBtn?.classList.add('active');
@@ -404,11 +403,15 @@ function switchNav(view) {
     patientsSection?.classList.remove('hidden');
     comptaSection?.classList.add('hidden');
     loadUpcomingRDV();
+    // Ouvre la liste alphabétique des patients
+    window.openPatientsModal();
   } else if (view === 'compta') {
     comptaBtn?.classList.add('active');
     patientsBtn?.classList.remove('active');
     comptaSection?.classList.remove('hidden');
     patientsSection?.classList.add('hidden');
+    // Ferme la liste des patients
+    window.closePatientsModal();
 
     const monthInput = document.getElementById('compta-month-select');
     if (monthInput && !monthInput.value) {
@@ -460,20 +463,16 @@ document.addEventListener('DOMContentLoaded', () => {
     if (monthInput && monthInput.value) loadComptaMonth(monthInput.value);
   });
 
-  // Navigation corrigée : plus d'ouverture de modale ici
+  // Navigation Bouton Patients : Ouvre la liste alphabétique
   document.getElementById('nav-patients-btn')?.addEventListener('click', (e) => {
     e.preventDefault();
     switchNav('patients');
   });
 
+  // Navigation Bouton Comptabilité
   document.getElementById('nav-compta-btn')?.addEventListener('click', (e) => {
     e.preventDefault();
     switchNav('compta');
-  });
-
-  // Bouton dédié à l'ouverture de la liste des patients (si présent dans votre HTML)
-  document.getElementById('btn-open-patients-list')?.addEventListener('click', () => {
-    window.openPatientsModal();
   });
 
   document.getElementById('btn-open-new-patient')?.addEventListener('click', () => {
@@ -532,6 +531,7 @@ document.addEventListener('DOMContentLoaded', () => {
       alert("Patient enregistré !");
       document.getElementById('patient-form').reset();
       hideAllForms();
+      window.openPatientsModal();
     }
   });
 
@@ -546,6 +546,7 @@ document.addEventListener('DOMContentLoaded', () => {
       else {
         alert("Patient supprimé.");
         hideAllForms();
+        window.openPatientsModal();
         loadUpcomingRDV();
       }
     }
