@@ -17,11 +17,11 @@ const TARIFS_MOTIFS = {
   "Autre": 0
 };
 
-// 1. Charger et afficher la liste des patients
+// 1. Charger et afficher la liste des patients (dans une modale dédiée)
 window.openPatientsModal = async function() {
   console.log("-> Ouverture / Chargement de la liste des patients...");
   
-  const container = document.getElementById('modal-patients-body') || document.getElementById('upcoming-rdv-list');
+  const container = document.getElementById('modal-patients-body');
   const modal = document.getElementById('modal-patients-list');
 
   if (modal) {
@@ -30,7 +30,7 @@ window.openPatientsModal = async function() {
   }
 
   if (!container) {
-    console.error("Erreur : Aucun conteneur HTML trouvé ('modal-patients-body' ou 'upcoming-rdv-list')");
+    console.error("Erreur : Aucun conteneur 'modal-patients-body' trouvé dans le HTML.");
     return;
   }
 
@@ -78,7 +78,52 @@ window.closePatientsModal = function() {
   }
 };
 
-// 2. Carte d'une séance
+// 2. Charger les prochains rendez-vous sur le tableau de bord
+async function loadUpcomingRdvs() {
+  const container = document.getElementById('upcoming-rdv-list');
+  if (!container || !supabaseClient) return;
+
+  container.innerHTML = '<p>Chargement des prochains rendez-vous...</p>';
+
+  const now = new Date().toISOString();
+
+  const { data: rdvs, error } = await supabaseClient
+    .from('rendez_vous')
+    .select('id, date_heure, motif, tarif, statut, patient_id, patients(nom, prenom)')
+    .gte('date_heure', now)
+    .order('date_heure', { ascending: true })
+    .limit(10);
+
+  if (error) {
+    console.error("Erreur lors du chargement des rendez-vous :", error);
+    container.innerHTML = `<p style="color:red;">Erreur : ${error.message}</p>`;
+    return;
+  }
+
+  if (!rdvs || rdvs.length === 0) {
+    container.innerHTML = '<p style="color:#666;">Aucun rendez-vous à venir.</p>';
+    return;
+  }
+
+  container.innerHTML = rdvs.map(r => {
+    const dt = new Date(r.date_heure);
+    const dateStr = dt.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
+    const timeStr = dt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    const patientNom = r.patients ? `${(r.patients.nom || '').toUpperCase()} ${r.patients.prenom || ''}` : 'Patient inconnu';
+
+    return `
+      <div style="background:#fff; border:1px solid #e0e0e0; border-left:4px solid #28a745; border-radius:6px; padding:10px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <div style="font-weight:bold; color:#2c3e50;">📅 ${dateStr} à ${timeStr} — ${patientNom}</div>
+          <div style="font-size:0.85rem; color:#555;"><strong>Motif :</strong> ${r.motif || 'Non précisé'} | <strong>Tarif :</strong> ${r.tarif || 0} €</div>
+        </div>
+        <button class="btn-secondary" style="font-size:0.8rem; padding:4px 8px;" onclick="viewPatientDetail('${r.patient_id}')">Fiche</button>
+      </div>
+    `;
+  }).join('');
+}
+
+// 3. Carte d'une séance dans la fiche patient
 function renderSeanceCard(r, indexNumber, patientId) {
   const dt = new Date(r.date_heure);
   const dateStr = dt.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
@@ -113,7 +158,7 @@ function renderSeanceCard(r, indexNumber, patientId) {
   `;
 }
 
-// 3. Fiche Patient
+// 4. Fiche Patient
 window.viewPatientDetail = async function(patientId) {
   const modal = document.getElementById('modal-patient-detail');
   const title = document.getElementById('patient-detail-title');
@@ -184,17 +229,20 @@ window.viewPatientDetail = async function(patientId) {
   `;
 };
 
-// 4. Mettre à jour le statut
+// 5. Mettre à jour le statut
 window.updateSeanceStatut = async function(rdvId, newStatut, patientId) {
   const updateData = { statut: newStatut };
   if (newStatut === 'Annulée') updateData.tarif = 0;
 
   const { error } = await supabaseClient.from('rendez_vous').update(updateData).eq('id', rdvId);
   if (error) alert("Erreur : " + error.message);
-  else window.viewPatientDetail(patientId);
+  else {
+    window.viewPatientDetail(patientId);
+    loadUpcomingRdvs();
+  }
 };
 
-// 5. Sauvegarder le compte-rendu
+// 6. Sauvegarder le compte-rendu
 window.saveCompteRendu = async function(rdvId, patientId) {
   const crValue = document.getElementById(`cr-${rdvId}`)?.value.trim() || '';
   const { error } = await supabaseClient.from('rendez_vous').update({ compte_rendu: crValue }).eq('id', rdvId);
@@ -232,6 +280,7 @@ window.deletePatientModal = async function(patientId, patientName) {
     else {
       alert("Patient supprimé.");
       window.openPatientsModal();
+      loadUpcomingRdvs();
     }
   }
 };
@@ -289,7 +338,8 @@ function switchNav(view) {
       comptaSection.style.display = 'none';
     }
 
-    window.openPatientsModal();
+    // Charger les prochains rendez-vous sur le tableau de bord
+    loadUpcomingRdvs();
   } else if (view === 'compta') {
     if (comptaBtn) comptaBtn.classList.add('active');
     if (patientsBtn) patientsBtn.classList.remove('active');
@@ -426,6 +476,7 @@ document.addEventListener('DOMContentLoaded', () => {
     patientsBtn.addEventListener('click', (e) => {
       e.preventDefault();
       switchNav('patients');
+      window.openPatientsModal(); // N'ouvre la liste des patients QU'AU clic sur ce bouton
     });
   }
 
