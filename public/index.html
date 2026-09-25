@@ -18,14 +18,14 @@
     
     <!-- En-tête -->
     <header>
-  <div class="header-content">
-    <img src="logo.jpg" alt="Héloïse Rondeau - Psychomotricienne" class="header-logo">
-    <div class="header-text">
-      <h1>Héloïse Rondeau</h1>
-      <p>Psychomotricienne — Cabinet du Grand Louis</p>
-    </div>
-  </div>
-</header>
+      <div class="header-content">
+        <img src="logo.jpg" alt="Héloïse Rondeau - Psychomotricienne" class="header-logo">
+        <div class="header-text">
+          <h1>Héloïse Rondeau</h1>
+          <p>Psychomotricienne — Cabinet du Grand Louis</p>
+        </div>
+      </div>
+    </header>
 
     <!-- Écran de Connexion -->
     <section id="auth-section" class="card auth-card">
@@ -54,16 +54,16 @@
       <!-- MENU À GAUCHE -->
       <aside class="sidebar card">
         <nav class="nav-menu">
-  <!-- Bouton Patients (Affiche la section principale des RDV + bouton liste patients) -->
-  <button id="nav-patients-btn" class="nav-btn active">
-    👥 Patients & Rendez-vous
-  </button>
-  
-  <!-- Bouton Comptabilité (Affiche uniquement le tableau comptable) -->
-  <button id="nav-compta-btn" class="nav-btn">
-    📊 Comptabilité
-  </button>
-</nav>
+          <!-- Bouton Patients -->
+          <button id="nav-patients-btn" class="nav-btn active">
+            👥 Patients &amp; Rendez-vous
+          </button>
+          
+          <!-- Bouton Comptabilité -->
+          <button id="nav-compta-btn" class="nav-btn">
+            📊 Comptabilité
+          </button>
+        </nav>
         <div class="logout-wrapper">
           <button id="logout-btn" class="btn-secondary">Déconnexion</button>
         </div>
@@ -221,86 +221,94 @@
             </table>
 
             <!-- Encart Bilan Financier Mensuel -->
-<div id="bilan-financier-container" style="background: #fcfbf8; border: 1px solid var(--primary); border-radius: 8px; padding: 15px; margin-top: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-  <h3 style="margin-top:0; color:var(--primary);">📊 Bilan Financier Mensuel</h3>
-  
-  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; font-size: 0.95rem;">
-    <!-- Chiffre d'affaires -->
-    <div>
-      <strong>Chiffre d'Affaires :</strong> <br>
-      <span id="bilan-ca" style="color:var(--success); font-size:1.1rem; font-weight:bold;">0.00 €</span>
-    </div>
-    
-    <!-- Cotisations Sociales (URSSAF + CFP) -->
-    <div>
-      <strong>Cotisations (17.6%) :</strong> 
-      <select id="urssaf-rate-select" style="padding: 2px 5px; font-size:0.85rem; border-radius:4px; margin-left:5px;">
-        <option value="0.176" selected>Taux BNC + CFP (17.6%)</option>
-        <option value="0.123">ACRE + CFP (~12.3%)</option>
-      </select>
-      <br><span id="bilan-urssaf" style="color:var(--danger); font-size:1.1rem; font-weight:bold;">- 0.00 €</span>
+            <div id="bilan-financier-container" style="background: #fcfbf8; border: 1px solid var(--primary, #ccc); border-radius: 8px; padding: 15px; margin-top: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+              <h3 style="margin-top:0; color:var(--primary, #333);">📊 Bilan Financier Mensuel</h3>
+              
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; font-size: 0.95rem;">
+                <!-- Chiffre d'affaires -->
+                <div>
+                  <strong>Chiffre d'Affaires :</strong> <br>
+                  <span id="bilan-ca" style="color:var(--success, #28a745); font-size:1.1rem; font-weight:bold;">0.00 €</span>
+                </div>
+                
+                <!-- Cotisations Sociales (URSSAF + CFP) -->
+                <div>
+                  <strong>Cotisations (17.6%) :</strong> 
+                  <select id="urssaf-rate-select" style="padding: 2px 5px; font-size:0.85rem; border-radius:4px; margin-left:5px;">
+                    <option value="0.176" selected>Taux BNC + CFP (17.6%)</option>
+                    <option value="0.123">ACRE + CFP (~12.3%)</option>
+                  </select>
+                  <br><span id="bilan-urssaf" style="color:var(--danger, #dc3545); font-size:1.1rem; font-weight:bold;">- 0.00 €</span>
+                </div>
+
+                <!-- Charges Variables (Fournitures) -->
+                <div>
+                  <strong>Fournitures (variable) :</strong><br>
+                  <div style="display: flex; align-items: center; gap: 4px; margin-top: 2px;">
+                    <input type="number" id="input-fournitures" value="10" min="0" step="1" style="width: 80px; padding: 2px 6px; font-size: 0.9rem; border-radius: 4px; border: 1px solid var(--border-color, #ccc);">
+                    <span>€</span>
+                  </div>
+                </div>
+
+                <!-- Total des charges d'exploitation -->
+                <div>
+                  <strong>Charges de fonctionnement :</strong> <br>
+                  <span id="bilan-charges" style="color:var(--danger, #dc3545); font-size:1.1rem; font-weight:bold;">- 496.82 €</span>
+                </div>
+                
+                <!-- Bénéfice Net -->
+                <div>
+                  <strong>Bénéfice Net Estimé :</strong> <br>
+                  <span id="bilan-net" style="color:var(--primary, #007bff); font-size:1.2rem; font-weight:bold;">0.00 €</span>
+                </div>
+              </div>
+
+              <details style="margin-top: 15px; font-size: 0.85rem; color: #555;">
+                <summary style="cursor: pointer; font-weight: bold;">Détail du calcul des charges</summary>
+                <ul style="margin: 5px 0; padding-left: 20px;">
+                  <li><strong>Charges fixes (486,82 €) :</strong> Loyer (410,00 €) + Doctolib (62,00 €) + RC Pro (14,82 €)</li>
+                  <li><strong>Charges variables :</strong> Fournitures (10,00 € par défaut)</li>
+                  <li><strong>Cotisations sur CA (17,6 %) :</strong> URSSAF (17,4 %) + Contribution Formation Professionnelle (0,2 %)</li>
+                </ul>
+              </details>
+            </div>
+
+          </div>
+        </div>
+
+      </section>
+    </main>
+
+    <!-- MODALE : LISTE DES PATIENTS -->
+    <div id="modal-patients-list" class="modal hidden">
+      <div class="modal-content card">
+        <div class="modal-header">
+          <h2>Liste des Patients (ordre alphabétique)</h2>
+          <span class="close-modal-btn" onclick="closePatientsModal()">&times;</span>
+        </div>
+        <div id="modal-patients-body" class="patients-modal-list">
+          <p>Chargement des patients...</p>
+        </div>
+      </div>
     </div>
 
-    <!-- Charges Variables (Fournitures) -->
-    <div>
-      <strong>Fournitures (variable) :</strong><br>
-      <div style="display: flex; align-items: center; gap: 4px; margin-top: 2px;">
-        <input type="number" id="input-fournitures" value="10" min="0" step="1" style="width: 80px; padding: 2px 6px; font-size: 0.9rem; border-radius: 4px; border: 1px solid var(--border-color);">
-        <span>€</span>
+    <!-- MODALE : FICHE PATIENT -->
+    <div id="modal-patient-detail" class="modal hidden">
+      <div class="modal-content card">
+        <div class="modal-header">
+          <h2 id="patient-detail-title">Fiche Patient</h2>
+          <span class="close-modal-btn" onclick="closePatientDetailModal()">&times;</span>
+        </div>
+        <div id="patient-detail-body">
+          <p>Chargement...</p>
+        </div>
+        <div class="btn-group-inline" style="margin-top: 1rem;">
+          <button type="button" class="btn-secondary" onclick="closePatientDetailModal()">Fermer</button>
+        </div>
       </div>
     </div>
 
-    <!-- Total des charges d'exploitation (Fixes + Variables) -->
-    <div>
-      <strong>Charges de fonctionnement :</strong> <br>
-      <span id="bilan-charges" style="color:var(--danger); font-size:1.1rem; font-weight:bold;">- 496.82 €</span>
-    </div>
-    
-    <!-- Bénéfice Net -->
-    <div>
-      <strong>Bénéfice Net Estimé :</strong> <br>
-      <span id="bilan-net" style="color:var(--primary); font-size:1.2rem; font-weight:bold;">0.00 €</span>
-    </div>
-  </div>
-
-  <details style="margin-top: 15px; font-size: 0.85rem; color: #555;">
-    <summary style="cursor: pointer; font-weight: bold;">Détail du calcul des charges</summary>
-    <ul style="margin: 5px 0; padding-left: 20px;">
-      <li><strong>Charges fixes (486,82 €) :</strong> Loyer (410,00 €) + Doctolib (62,00 €) + RC Pro (14,82 €)</li>
-      <li><strong>Charges variables :</strong> Fournitures (10,00 € par défaut)</li>
-      <li><strong>Cotisations sur CA (17,6 %) :</strong> URSSAF (17,4 %) + Contribution Formation Professionnelle (0,2 %)</li>
-    </ul>
-  </details>
-</div>
-
-  <!-- MODALE : LISTE DES PATIENTS -->
-  <div id="modal-patients-list" class="modal hidden">
-    <div class="modal-content card">
-      <div class="modal-header">
-        <h2>Liste des Patients (ordre alphabétique)</h2>
-        <span class="close-modal-btn" onclick="closePatientsModal()">&times;</span>
-      </div>
-      <div id="modal-patients-body" class="patients-modal-list">
-        <p>Chargement des patients...</p>
-      </div>
-    </div>
-  </div>
-
-  <!-- MODALE : FICHE PATIENT -->
-  <div id="modal-patient-detail" class="modal hidden">
-    <div class="modal-content card">
-      <div class="modal-header">
-        <h2 id="patient-detail-title">Fiche Patient</h2>
-        <span class="close-modal-btn" onclick="closePatientDetailModal()">&times;</span>
-      </div>
-      <div id="patient-detail-body">
-        <p>Chargement...</p>
-      </div>
-      <div class="btn-group-inline" style="margin-top: 1rem;">
-        <button type="button" class="btn-secondary" onclick="closePatientDetailModal()">Fermer</button>
-      </div>
-    </div>
-  </div>
+  </div> <!-- /container -->
 
 </body>
 </html>
